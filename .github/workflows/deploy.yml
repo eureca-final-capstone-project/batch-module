@@ -39,7 +39,7 @@ jobs:
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
-          batchname: ${{ secrets.EC2_batchNAME }}
+          username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           source: ./docker-output/batch-app.tar
           target: /home/ubuntu/deploy/
@@ -48,7 +48,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
-          batchname: ${{ secrets.EC2_batchNAME }}
+          username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
             cd /home/ubuntu/deploy/docker-output
