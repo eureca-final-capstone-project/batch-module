@@ -21,13 +21,13 @@ public class UserDataItemReader implements ItemReader<Long>  {
     private final WebClient userWebClient;
     private Iterator<Long> userIdIterator;
     private boolean initialized = false;
-    private final int today = LocalDate.now().getDayOfMonth();
 
     @Override
     public Long read() throws Exception {
         // 최초 한 번만 호출
         if (!initialized) {
-            initializeUserIds();
+            int today = LocalDate.now().getDayOfMonth();
+            initializeUserIds(today);
             initialized = true;
         }
 
@@ -35,7 +35,7 @@ public class UserDataItemReader implements ItemReader<Long>  {
         return userIdIterator != null && userIdIterator.hasNext() ? userIdIterator.next() : null;
     }
 
-    private void initializeUserIds() {
+    private void initializeUserIds(int today) {
         try {
             // 조회 api 호출
             List<Long> userIds = userWebClient.get()
