@@ -18,18 +18,9 @@ public class ResetUserDataScheduler {
     private final JobLauncher jobLauncher;
     private final Job resetUserDataJob;
 
-    @Scheduled(cron = "0 */10 * * * ?", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
     public void runAlternatingBatch() {
-        int currentMinute = LocalDateTime.now().getMinute();
-
-        long amount;
-        if ((currentMinute / 10) % 2 == 0) {
-            amount = 0;
-        } else {
-            amount = 111;
-        }
-
-        runDailyBatch(amount);
+        runDailyBatch(0);
     }
 
     public void runDailyBatch(long amount) {
