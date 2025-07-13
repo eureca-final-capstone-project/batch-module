@@ -3,6 +3,7 @@ package eureca.capstone.project.batch.config;
 import eureca.capstone.project.batch.component.UserDataItemReader;
 import eureca.capstone.project.batch.component.UserDataItemWriter;
 import lombok.RequiredArgsConstructor;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
@@ -13,6 +14,7 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.support.ListItemReader;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.LocalDate;
