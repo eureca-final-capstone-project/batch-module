@@ -21,13 +21,13 @@ public class UserService {
     }
 
     @Transactional
-    public void resetMonthlyData(List<Long> userIds) {
+    public void resetMonthlyData(List<Long> userIds, int amount) {
         if (userIds.isEmpty()) {
             return;
         }
 
         List<User> usersToUpdate = userRepository.findByIdIn(userIds);
-        usersToUpdate.forEach(user -> user.setSellableDataMb(0));
+        usersToUpdate.forEach(user -> user.setSellableDataMb(amount));
         userRepository.saveAll(usersToUpdate);
     }
 

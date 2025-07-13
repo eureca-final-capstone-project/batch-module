@@ -24,8 +24,9 @@ public class UserController {
 
     // 사용자 데이터 초기화
     @PutMapping("/reset-monthly")
-    public void resetMonthlyData(@RequestBody List<Long> userIds) {
-        userService.resetMonthlyData(userIds);
+    public void resetMonthlyData(@RequestBody List<Long> userIds,
+                                 @RequestParam int amount) {
+        userService.resetMonthlyData(userIds, amount);
     }
 }
 

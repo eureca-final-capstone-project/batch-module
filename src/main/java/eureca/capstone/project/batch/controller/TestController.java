@@ -5,10 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -20,10 +17,11 @@ public class TestController {
     private final Job resetUserDataJob;
 
     @PostMapping("/batch-test")
-    public String runManualBatch() {
+    public String runManualBatch(@RequestParam(defaultValue = "0") int amount) {
         try {
             jobLauncher.run(resetUserDataJob, new JobParametersBuilder()
                     .addLong("time", System.currentTimeMillis())
+                    .addLong("amount", (long) amount)
                     .toJobParameters());
             return "batch 수동 초기화 완료";
         } catch (Exception e) {

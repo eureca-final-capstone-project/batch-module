@@ -8,6 +8,8 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -16,12 +18,26 @@ public class ResetUserDataScheduler {
     private final JobLauncher jobLauncher;
     private final Job resetUserDataJob;
 
-    @Scheduled(cron = "0 20 13 * * ?", zone = "Asia/Seoul") // 매일 0시
-    public void runDailyBatch() {
+    @Scheduled(cron = "0 */10 * * * ?", zone = "Asia/Seoul")
+    public void runAlternatingBatch() {
+        int currentMinute = LocalDateTime.now().getMinute();
+
+        long amount;
+        if ((currentMinute / 10) % 2 == 0) {
+            amount = 0;
+        } else {
+            amount = 111;
+        }
+
+        runDailyBatch(amount);
+    }
+
+    public void runDailyBatch(long amount) {
         try {
             log.info("batch 시작 (스케줄러)");
             jobLauncher.run(resetUserDataJob, new JobParametersBuilder()
                     .addLong("time", System.currentTimeMillis())
+                    .addLong("amount", amount)
                     .toJobParameters());
             log.info("배치 완료(스케줄러)");
         } catch (Exception e) {

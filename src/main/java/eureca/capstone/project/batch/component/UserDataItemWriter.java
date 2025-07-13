@@ -2,6 +2,7 @@ package eureca.capstone.project.batch.component;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,8 +14,12 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Component
+@StepScope
 @RequiredArgsConstructor
 public class UserDataItemWriter implements ItemWriter<Long> {
+
+    @Value("#{jobParameters['amount']}")
+    private int amount;
 
     private final WebClient userWebClient;
 
@@ -30,13 +35,17 @@ public class UserDataItemWriter implements ItemWriter<Long> {
 
         try {
             userWebClient.put()
-                    .uri("/api/users/reset-monthly")
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/users/reset-monthly")
+                            .queryParam("amount", amount)
+                            .build())
+//                    .uri("/api/users/reset-monthly")
                     .bodyValue(userIds)
                     .retrieve()
                     .toBodilessEntity()
                     .block();
 
-            log.info("처리 개수: ", userIds.size());
+            log.info("처리 개수: {}", userIds.size());
 
         } catch (Exception e) {
             log.error("ItemWrite 실패: {}", userIds, e);
