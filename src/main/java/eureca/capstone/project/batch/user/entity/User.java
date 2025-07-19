@@ -1,28 +1,54 @@
 package eureca.capstone.project.batch.user.entity;
 
+import eureca.capstone.project.batch.common.entity.BaseEntity;
+import eureca.capstone.project.batch.common.entity.Status;
+import eureca.capstone.project.batch.common.entity.TelecomCompany;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user")
-@Getter @Setter
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+@Builder
+@Table(
+        name = "user",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_user_email", columnNames = "email")
+        }
+)
+public class User extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Long id;
+    private Long userId;
 
-    @Column(name = "sellable_data_mb")
-    private Integer sellableDataMb;
+    @JoinColumn(name = "telecom_company_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private TelecomCompany telecomCompany;
 
-    @Column(name = "reset_date")
-    private Integer resetDate;
+    @Column(unique = true)
+    private String email;
+    private String password;
+    private String nickname;
+
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
+    @JoinColumn(name = "status_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Status status;
+
+    private String provider;
+
+    public void updateUserNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void updateUserPassword(String password) {
+        this.password = password;
+    }
 }

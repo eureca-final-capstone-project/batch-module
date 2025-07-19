@@ -6,6 +6,9 @@ WORKDIR /app
 # 필요한 패키지 설치 (Debian 계열이므로 apt 사용)
 RUN apt-get update && apt-get install -y unzip curl tini bash
 
+ENV TZ Asia/Seoul
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # tini를 ENTRYPOINT로 설정 (좀비 프로세스 방지)
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
