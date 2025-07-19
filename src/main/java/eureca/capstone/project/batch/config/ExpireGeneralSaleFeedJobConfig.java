@@ -2,7 +2,9 @@ package eureca.capstone.project.batch.config;
 
 import eureca.capstone.project.batch.common.entity.Status;
 import eureca.capstone.project.batch.common.repository.StatusRepository;
+import eureca.capstone.project.batch.component.JobCompletionNotificationListener;
 import eureca.capstone.project.batch.transaction_feed.domain.TransactionFeed;
+import eureca.capstone.project.batch.transaction_feed.repository.TransactionFeedRepository;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -11,9 +13,8 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.database.JpaItemWriter;
+import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
-import org.springframework.batch.item.database.builder.JpaItemWriterBuilder;
 import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -21,53 +22,62 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Configuration
 public class ExpireGeneralSaleFeedJobConfig {
     private final EntityManagerFactory entityManagerFactory;
     private final StatusRepository statusRepository;
-    private static final int CHUNK_SIZE=100;
+    private final JobCompletionNotificationListener jobCompletionNotificationListener;
+    private final TransactionFeedRepository transactionFeedRepository;
+    private static final int CHUNK_SIZE = 100;
 
     private final Status expiredStatus;
 
     public ExpireGeneralSaleFeedJobConfig(EntityManagerFactory entityManagerFactory,
-                                          StatusRepository statusRepository){
+                                          StatusRepository statusRepository,
+                                          JobCompletionNotificationListener jobCompletionNotificationListener,
+                                          TransactionFeedRepository transactionFeedRepository) {
         this.entityManagerFactory = entityManagerFactory;
         this.statusRepository = statusRepository;
+        this.jobCompletionNotificationListener = jobCompletionNotificationListener;
+        this.transactionFeedRepository = transactionFeedRepository;
         this.expiredStatus = statusRepository.findByDomainAndCode("FEED", "EXPIRED").orElseThrow(() -> new IllegalArgumentException("기간만료 상태를 찾을 수 없습니다."));
     }
 
     @Bean
-    public Job expireGeneralSaleFeedJob(JobRepository jobRepository, Step expireGeneralSaleFeedStep){
+    public Job expireGeneralSaleFeedJob(JobRepository jobRepository, Step expireGeneralSaleFeedStep) {
         return new JobBuilder("expireGeneralSaleFeedJob", jobRepository)
+                .listener(jobCompletionNotificationListener)
                 .start(expireGeneralSaleFeedStep)
                 .build();
     }
 
     @Bean
-    public Step expireGeneralSaleFeedStep(JobRepository jobRepository, PlatformTransactionManager transactionManager){
+    public Step expireGeneralSaleFeedStep(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
         return new StepBuilder("expireGeneralSaleFeedStep", jobRepository)
                 .<TransactionFeed, TransactionFeed>chunk(CHUNK_SIZE, transactionManager)
                 .reader(expireGeneralSaleFeedReader(null))
                 .processor(expireGeneralSaleFeedProcessor())
-                .writer(expireGeneralSaleFeedWriter())
+                .writer(customItemWriter())
                 .build();
     }
 
     @Bean
     @StepScope
     public JpaPagingItemReader<TransactionFeed> expireGeneralSaleFeedReader(
-            @Value("#{jobParameters['targetDateTime']}") String targetDateTimeStr){
+            @Value("#{jobParameters['targetDateTime']}") String targetDateTimeStr) {
 
         LocalDateTime targetDateTime = LocalDateTime.parse(targetDateTimeStr);
 
         String jpqlQuery = """
                 SELECT tf FROM TransactionFeed tf
-                JOIN tf.status s
-                JOIN tf.salesType st
-                WHERE st.name ='일반 판매'
-                AND s.code = 'ON_SALE'
+                JOIN FETCH tf.status
+                JOIN FETCH tf.salesType
+                WHERE tf.salesType.name ='일반 판매'
+                AND tf.status.code = 'ON_SALE'
                 AND tf.isDeleted = false
                 AND tf.expiresAt < :targetDateTime
                 """;
@@ -90,10 +100,15 @@ public class ExpireGeneralSaleFeedJobConfig {
     }
 
     @Bean
-    public JpaItemWriter<TransactionFeed> expireGeneralSaleFeedWriter() {
-        // JpaItemWriter를 사용하면 Processor에서 반환된 엔티티의 변경사항을 자동으로 DB에 반영(UPDATE)해줍니다.
-        return new JpaItemWriterBuilder<TransactionFeed>()
-                .entityManagerFactory(entityManagerFactory)
-                .build();
+    public ItemWriter<TransactionFeed> customItemWriter() {
+        return chunk -> {
+            List<Long> idsToUpdate = chunk.getItems().stream()
+                    .map(TransactionFeed::getTransactionFeedId)
+                    .collect(Collectors.toList());
+
+            if (!idsToUpdate.isEmpty()) {
+                transactionFeedRepository.updateStatusForIds(this.expiredStatus, idsToUpdate);
+            }
+        };
     }
 }
