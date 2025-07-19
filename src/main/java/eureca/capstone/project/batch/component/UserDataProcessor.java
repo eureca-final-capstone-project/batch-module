@@ -13,7 +13,7 @@ public class UserDataProcessor implements ItemProcessor<UserData, UserData> {
     private final PlanRepository planRepository;
 
     @Override
-    public UserData process(UserData userData) throws Exception { // User을 읽어서 UserData를 처리
+    public UserData process(UserData userData) throws Exception {
         Long planData = planRepository.findDataByPlanId(userData.getPlanId())
                 .orElseThrow(() -> new RuntimeException("PlanData not found"));
 

@@ -75,8 +75,7 @@ public class BatchConfig {
                 .entityManagerFactory(entityManagerFactory)
                 .queryString("select ud from UserData ud where ud.resetDataAt = :today")
                 .parameterValues(params)
-                .pageSize(1000)
-                .transacted(true)
+                .pageSize(100)
                 .build();
     }
 
@@ -84,10 +83,9 @@ public class BatchConfig {
     public ItemWriter<UserData> userDataWriter() {
         return new JdbcBatchItemWriterBuilder<UserData>()
                 .dataSource(dataSource)
-                .sql("update user_data set sellable_data_mb = :sellableDataMb, total_data_mb =:totalDataMb")
+                .sql("update user_data set sellable_data_mb = :sellableDataMb, total_data_mb =:totalDataMb where user_data_id = :userDataId")
                 .beanMapped()
                 .build();
     }
-
 
 }
