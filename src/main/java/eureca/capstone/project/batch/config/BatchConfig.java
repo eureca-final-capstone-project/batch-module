@@ -10,14 +10,17 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JpaItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
+import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.database.builder.JpaItemWriterBuilder;
 import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import javax.sql.DataSource;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +33,7 @@ public class BatchConfig {
     private final PlatformTransactionManager platformTransactionManager;
     private final EntityManagerFactory entityManagerFactory;
     private final UserDataProcessor userDataProcessor;
+    private final DataSource dataSource;
 
     @Bean
     public Job resetUserDataJob() {
@@ -58,7 +62,6 @@ public class BatchConfig {
 
     /* TODO. 쿼리 성능 안좋음
         - plan 조회 쿼리가 user 수만큼 나감. (UserData - Plan 사이 연관관계 없음.)
-        - userdata 재조회, update도 user 수만큼.
      */
     @Bean
     @StepScope
@@ -78,9 +81,11 @@ public class BatchConfig {
     }
 
     @Bean
-    public JpaItemWriter<UserData> userDataWriter() {
-        return new JpaItemWriterBuilder<UserData>()
-                .entityManagerFactory(entityManagerFactory)
+    public ItemWriter<UserData> userDataWriter() {
+        return new JdbcBatchItemWriterBuilder<UserData>()
+                .dataSource(dataSource)
+                .sql("update user_data set sellable_data_mb = :sellableDataMb, total_data_mb =:totalDataMb")
+                .beanMapped()
                 .build();
     }
 
