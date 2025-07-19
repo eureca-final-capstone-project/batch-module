@@ -30,19 +30,19 @@ public class TestController {
         }
     }
 
-    @PostMapping("/batch-test")
-    public String runManualBatch(@RequestParam(defaultValue = "0") int amount) {
-        try {
-            jobLauncher.run(resetUserDataJob, new JobParametersBuilder()
-                    .addLong("time", System.currentTimeMillis())
-                    .addLong("amount", (long) amount)
-                    .toJobParameters());
-            return "batch 수동 초기화 완료";
-        } catch (Exception e) {
-            log.error("batch 수동 초기화 실패", e);
-            return "batch 수동 초기화 실패: " + e.getMessage();
-        }
-    }
+//    @PostMapping("/batch-test")
+//    public String runManualBatch(@RequestParam(defaultValue = "0") int amount) {
+//        try {
+//            jobLauncher.run(resetUserDataJob, new JobParametersBuilder()
+//                    .addLong("time", System.currentTimeMillis())
+//                    .addLong("amount", (long) amount)
+//                    .toJobParameters());
+//            return "batch 수동 초기화 완료";
+//        } catch (Exception e) {
+//            log.error("batch 수동 초기화 실패", e);
+//            return "batch 수동 초기화 실패: " + e.getMessage();
+//        }
+//    }
 
 
     @GetMapping("/test")
