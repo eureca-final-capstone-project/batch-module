@@ -1,5 +1,6 @@
 package eureca.capstone.project.batch.config;
 
+import eureca.capstone.project.batch.component.UserDataListener;
 import eureca.capstone.project.batch.component.UserDataProcessor;
 import eureca.capstone.project.batch.user.entity.UserData;
 import jakarta.persistence.EntityManagerFactory;
@@ -11,19 +12,23 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.database.JpaItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
-import org.springframework.batch.item.database.builder.JpaItemWriterBuilder;
 import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.retry.backoff.FixedBackOffPolicy;
+import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
+import java.io.IOException;
+import java.sql.SQLRecoverableException;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 @Configuration
 @RequiredArgsConstructor
@@ -34,6 +39,7 @@ public class BatchConfig {
     private final EntityManagerFactory entityManagerFactory;
     private final UserDataProcessor userDataProcessor;
     private final DataSource dataSource;
+    private final UserDataListener userDataListener;
 
     @Bean
     public Job resetUserDataJob() {
@@ -42,11 +48,6 @@ public class BatchConfig {
                 .build();
     }
 
-    /*
-        reader에서 오늘 초기화일자인 UserData 읽고,
-        processor에서 UserData 초기화 처리
-        writer에서 db에 저장
-     */
     @Bean
     public Step resetUserDataStep() {
         return new StepBuilder("resetUserDataStep", jobRepository)
@@ -55,8 +56,9 @@ public class BatchConfig {
                 .processor(userDataProcessor)
                 .writer(userDataWriter())
                 .faultTolerant()
-                .retry(Exception.class)
-                .retryLimit(3)
+                .retryPolicy(retryPolicy())
+                .backOffPolicy(fixedBackOffPolicy())
+                .listener(userDataListener)
                 .build();
     }
 
@@ -66,13 +68,14 @@ public class BatchConfig {
     @Bean
     @StepScope
     public JpaPagingItemReader<UserData> userDataJpaReader() {
-        Integer today = LocalDate.now().getDayOfMonth();
+        Integer today = LocalDate.now().getDayOfMonth()-1; // TODO: 테스트용 -1 해놓음! 지우기.
         Map<String, Object> params = new HashMap<>();
         params.put("today", today);
 
         return new JpaPagingItemReaderBuilder<UserData>()
                 .name("userJpaReader")
                 .entityManagerFactory(entityManagerFactory)
+//                .queryString("select ud from UserData ud join fetch ud.plan where ud.resetDataAt = :today") // 연관관계 설정시
                 .queryString("select ud from UserData ud where ud.resetDataAt = :today")
                 .parameterValues(params)
                 .pageSize(100)
@@ -85,7 +88,27 @@ public class BatchConfig {
                 .dataSource(dataSource)
                 .sql("update user_data set sellable_data_mb = :sellableDataMb, total_data_mb =:totalDataMb where user_data_id = :userDataId")
                 .beanMapped()
+                .assertUpdates(false)
                 .build();
     }
+
+    @Bean
+    public SimpleRetryPolicy retryPolicy(){
+        Map<Class<? extends Throwable>, Boolean> retryableExceptions = new HashMap<>();
+        retryableExceptions.put(IOException.class, true);
+        retryableExceptions.put(TimeoutException.class, true);
+        retryableExceptions.put(SQLRecoverableException.class, true);
+        retryableExceptions.put(TransientDataAccessException.class, true);
+
+        return new SimpleRetryPolicy(3, retryableExceptions);
+    }
+
+    @Bean
+    public FixedBackOffPolicy fixedBackOffPolicy(){
+        FixedBackOffPolicy fixedBackOffPolicy = new FixedBackOffPolicy();
+        fixedBackOffPolicy.setBackOffPeriod(2000);
+        return fixedBackOffPolicy;
+    }
+
 
 }
