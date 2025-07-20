@@ -2,7 +2,8 @@ package eureca.capstone.project.batch.config;
 
 import eureca.capstone.project.batch.common.entity.Status;
 import eureca.capstone.project.batch.common.repository.StatusRepository;
-import eureca.capstone.project.batch.component.JobCompletionNotificationListener;
+import eureca.capstone.project.batch.component.listener.CustomSkipListener;
+import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
 import eureca.capstone.project.batch.transaction_feed.domain.TransactionFeed;
 import eureca.capstone.project.batch.transaction_feed.repository.TransactionFeedRepository;
 import jakarta.persistence.EntityManagerFactory;
@@ -19,6 +20,7 @@ import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilde
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.LocalDateTime;
@@ -32,6 +34,7 @@ public class ExpireGeneralSaleFeedJobConfig {
     private final StatusRepository statusRepository;
     private final JobCompletionNotificationListener jobCompletionNotificationListener;
     private final TransactionFeedRepository transactionFeedRepository;
+    private final CustomSkipListener customSkipListener;
     private static final int CHUNK_SIZE = 100;
 
     private final Status expiredStatus;
@@ -39,11 +42,13 @@ public class ExpireGeneralSaleFeedJobConfig {
     public ExpireGeneralSaleFeedJobConfig(EntityManagerFactory entityManagerFactory,
                                           StatusRepository statusRepository,
                                           JobCompletionNotificationListener jobCompletionNotificationListener,
-                                          TransactionFeedRepository transactionFeedRepository) {
+                                          TransactionFeedRepository transactionFeedRepository,
+                                          CustomSkipListener customSkipListener) {
         this.entityManagerFactory = entityManagerFactory;
         this.statusRepository = statusRepository;
         this.jobCompletionNotificationListener = jobCompletionNotificationListener;
         this.transactionFeedRepository = transactionFeedRepository;
+        this.customSkipListener = customSkipListener;
         this.expiredStatus = statusRepository.findByDomainAndCode("FEED", "EXPIRED").orElseThrow(() -> new IllegalArgumentException("기간만료 상태를 찾을 수 없습니다."));
     }
 
@@ -62,6 +67,17 @@ public class ExpireGeneralSaleFeedJobConfig {
                 .reader(expireGeneralSaleFeedReader(null))
                 .processor(expireGeneralSaleFeedProcessor())
                 .writer(customItemWriter())
+                .faultTolerant()
+
+                .retryLimit(3)
+                .retry(OptimisticLockingFailureException.class)
+
+                .skipLimit(10)
+                .skip(NullPointerException.class)
+                .skip(IllegalArgumentException.class)
+
+                // Skip 발생 시 로그를 남기기 위한 리스너 등록
+                .listener(customSkipListener)
                 .build();
     }
 

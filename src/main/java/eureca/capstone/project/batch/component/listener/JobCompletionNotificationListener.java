@@ -1,4 +1,4 @@
-package eureca.capstone.project.batch.component;
+package eureca.capstone.project.batch.component.listener;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
