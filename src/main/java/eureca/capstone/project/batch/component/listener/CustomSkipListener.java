@@ -1,14 +1,12 @@
 package eureca.capstone.project.batch.component.listener;
 
 import eureca.capstone.project.batch.common.entity.BatchFailureLog;
-import eureca.capstone.project.batch.common.repository.BatchFailureLogRepository;
+import eureca.capstone.project.batch.common.service.BatchFailureLogService;
 import eureca.capstone.project.batch.component.external.DiscordNotificationService;
 import eureca.capstone.project.batch.transaction_feed.domain.TransactionFeed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.SkipListener;
-import org.springframework.batch.core.StepExecution;
-import org.springframework.batch.core.annotation.BeforeStep;
 import org.springframework.batch.core.annotation.OnSkipInProcess;
 import org.springframework.batch.core.annotation.OnSkipInRead;
 import org.springframework.batch.core.annotation.OnSkipInWrite;
@@ -21,49 +19,44 @@ import java.awt.*;
 @RequiredArgsConstructor
 public class CustomSkipListener implements SkipListener<TransactionFeed, TransactionFeed> {
 
-    private final BatchFailureLogRepository batchFailureLogRepository;
+    private final BatchFailureLogService batchFailureLogService;
     private final DiscordNotificationService discordNotificationService;
-    private StepExecution stepExecution;
 
-    @BeforeStep
-    public void beforeStep(StepExecution stepExecution) {
-        this.stepExecution = stepExecution;
-    }
+
 
     @Override
     @OnSkipInRead
     public void onSkipInRead(Throwable t) {
         log.warn("[SKIP] Reader에서 오류가 발생하여 건너뜁니다. error={}", t.getMessage());
-        saveFailureLog(t, "READ", null);
     }
 
     @Override
     @OnSkipInProcess
     public void onSkipInProcess(TransactionFeed item, Throwable t) {
         log.warn("[SKIP] Processor에서 오류가 발생하여 건너뜁니다. item ID={}, error={}", item.getTransactionFeedId(), t.getMessage());
-        saveFailureLog(t, "PROCESS", item);
+        handleSkippedItem(t, "PROCESS", item, "expireGeneralSaleFeedJob", "expireGeneralSaleFeedStep");
     }
 
     @Override
     @OnSkipInWrite
     public void onSkipInWrite(TransactionFeed item, Throwable t) {
         log.warn("[SKIP] Writer에서 오류가 발생하여 건너뜁니다. item ID={}, error={}", item.getTransactionFeedId(), t.getMessage());
-        saveFailureLog(t, "WRITE", item);
+        handleSkippedItem(t, "WRITE", item, "expireGeneralSaleFeedJob", "expireGeneralSaleFeedStep");
     }
 
-    private void saveFailureLog(Throwable t, String stepPhase, TransactionFeed item) {
-        String jobName = stepExecution.getJobExecution().getJobInstance().getJobName();
-        String stepName = stepExecution.getStepName() + ":" + stepPhase;
+    private void handleSkippedItem(Throwable t, String stepPhase, TransactionFeed item, String jobName, String stepName) {
+        String fullStepName = stepName + ":" + stepPhase;
         String failedItemId = (item != null) ? String.valueOf(item.getTransactionFeedId()) : "N/A";
 
+        // 1. DB에 실패 로그 저장 (별도 트랜잭션으로 실행)
         BatchFailureLog failureLog = BatchFailureLog.builder()
                 .jobName(jobName)
-                .stepName(stepName)
+                .stepName(fullStepName)
                 .failedItemType(item != null ? item.getClass().getSimpleName() : "N/A")
                 .failedItemId(failedItemId)
                 .errorMessage(t.toString())
                 .build();
-        batchFailureLogRepository.save(failureLog);
+        batchFailureLogService.saveFailureLog(failureLog);
 
         String title = "🟡 BATCH-SKIP";
         String description = String.format(
