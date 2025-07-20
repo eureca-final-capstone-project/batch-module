@@ -22,7 +22,7 @@ public class ExpireGeneralSaleFeedScheduler {
         this.expireGeneralSaleFeedJob = expireGeneralSaleFeedJob;
     }
 
-    @Scheduled(cron = "0 43 * * * *")
+    @Scheduled(cron = "0 18 * * * *")
     public void runExpireGeneralSaleFeedJob() throws Exception {
         log.info("게시글 기간 만료 배치 시작 (스케줄러)");
         JobParameters jobParameters = new JobParametersBuilder()

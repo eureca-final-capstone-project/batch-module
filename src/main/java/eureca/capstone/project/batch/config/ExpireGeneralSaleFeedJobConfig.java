@@ -109,10 +109,7 @@ public class ExpireGeneralSaleFeedJobConfig {
 
     @Bean
     public ItemProcessor<TransactionFeed, TransactionFeed> expireGeneralSaleFeedProcessor() {
-        return feed -> {
-            feed.changeStatus(this.expiredStatus);
-            return feed;
-        };
+        return feed -> feed;
     }
 
     @Bean

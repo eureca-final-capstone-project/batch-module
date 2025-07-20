@@ -2,6 +2,7 @@ package eureca.capstone.project.batch.component.listener;
 
 import eureca.capstone.project.batch.common.entity.BatchFailureLog;
 import eureca.capstone.project.batch.common.repository.BatchFailureLogRepository;
+import eureca.capstone.project.batch.component.external.DiscordNotificationService;
 import eureca.capstone.project.batch.transaction_feed.domain.TransactionFeed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,12 +14,15 @@ import org.springframework.batch.core.annotation.OnSkipInRead;
 import org.springframework.batch.core.annotation.OnSkipInWrite;
 import org.springframework.stereotype.Component;
 
+import java.awt.*;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class CustomSkipListener implements SkipListener<TransactionFeed, TransactionFeed> {
 
     private final BatchFailureLogRepository batchFailureLogRepository;
+    private final DiscordNotificationService discordNotificationService;
     private StepExecution stepExecution;
 
     @BeforeStep
@@ -50,14 +54,22 @@ public class CustomSkipListener implements SkipListener<TransactionFeed, Transac
     private void saveFailureLog(Throwable t, String stepPhase, TransactionFeed item) {
         String jobName = stepExecution.getJobExecution().getJobInstance().getJobName();
         String stepName = stepExecution.getStepName() + ":" + stepPhase;
+        String failedItemId = (item != null) ? String.valueOf(item.getTransactionFeedId()) : "N/A";
 
         BatchFailureLog failureLog = BatchFailureLog.builder()
                 .jobName(jobName)
                 .stepName(stepName)
                 .failedItemType(item != null ? item.getClass().getSimpleName() : "N/A")
-                .failedItemId(item != null ? String.valueOf(item.getTransactionFeedId()) : "N/A")
+                .failedItemId(failedItemId)
                 .errorMessage(t.toString())
                 .build();
         batchFailureLogRepository.save(failureLog);
+
+        String title = "🟡 BATCH-SKIP";
+        String description = String.format(
+                "**Job**: `%s`\n**Step**: `%s`\n**Item ID**: `%s`\n**Error**: ```%s```",
+                jobName, stepName, failedItemId, t.getMessage()
+        );
+        discordNotificationService.sendMessage(title, description, Color.YELLOW);
     }
 }
