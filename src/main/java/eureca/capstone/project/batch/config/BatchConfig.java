@@ -5,6 +5,7 @@ import eureca.capstone.project.batch.component.UserDataProcessor;
 import eureca.capstone.project.batch.user.entity.UserData;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -15,6 +16,7 @@ import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.TransientDataAccessException;
@@ -30,6 +32,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class BatchConfig {
@@ -52,7 +55,7 @@ public class BatchConfig {
     public Step resetUserDataStep() {
         return new StepBuilder("resetUserDataStep", jobRepository)
                 .<UserData, UserData>chunk(100, platformTransactionManager)
-                .reader(userDataJpaReader())
+                .reader(userDataJpaReader(null))
                 .processor(userDataProcessor)
                 .writer(userDataWriter())
                 .faultTolerant()
@@ -62,21 +65,32 @@ public class BatchConfig {
                 .build();
     }
 
-    /* TODO. 쿼리 성능 안좋음
+    /* TODO.
         - plan 조회 쿼리가 user 수만큼 나감. (UserData - Plan 사이 연관관계 없음.)
      */
     @Bean
     @StepScope
-    public JpaPagingItemReader<UserData> userDataJpaReader() {
-        Integer today = LocalDate.now().getDayOfMonth()-1; // TODO: 테스트용 -1 해놓음! 지우기.
+    public JpaPagingItemReader<UserData> userDataJpaReader(
+            @Value("#{jobParameters['currentDate']}") String currentDate) {
+        LocalDate date = LocalDate.parse(currentDate);
+        Integer today = date.getDayOfMonth();
+        Integer lastDay = date.lengthOfMonth();
         Map<String, Object> params = new HashMap<>();
         params.put("today", today);
+
+        String query;
+        if(today.equals(lastDay)) {
+//            query = "select ud from UserData ud join fetch ud.plan where ud.resetDataAt >= :today"; // 연관관계 설정시
+            query = "select ud from UserData ud where ud.resetDataAt >= :today";
+        } else{
+//            query = "select ud from UserData ud join fetch ud.plan where ud.resetDataAt = :today"; // 연관관계 설정시
+            query = "select ud from UserData ud where ud.resetDataAt = :today";
+        }
 
         return new JpaPagingItemReaderBuilder<UserData>()
                 .name("userJpaReader")
                 .entityManagerFactory(entityManagerFactory)
-//                .queryString("select ud from UserData ud join fetch ud.plan where ud.resetDataAt = :today") // 연관관계 설정시
-                .queryString("select ud from UserData ud where ud.resetDataAt = :today")
+                .queryString(query)
                 .parameterValues(params)
                 .pageSize(100)
                 .build();

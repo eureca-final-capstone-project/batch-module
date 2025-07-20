@@ -30,12 +30,13 @@ public class UserDataListener implements StepExecutionListener, JobExecutionList
             String errorMessage = "알 수 없는 오류";
 
             if (!stepExecution.getFailureExceptions().isEmpty()) {
+                // 에러메세지 탐색
                 Throwable rootCause = stepExecution.getFailureExceptions().get(0);
                 while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
                     rootCause = rootCause.getCause();
                 }
                 String fullStackTrace = Arrays.stream(rootCause.getStackTrace())
-                        .limit(5) // 또는 10줄
+                        .limit(5)
                         .map(StackTraceElement::toString)
                         .collect(Collectors.joining("\n"));
 
@@ -54,7 +55,6 @@ public class UserDataListener implements StepExecutionListener, JobExecutionList
                     .exitSatus(stepExecution.getExitStatus().getExitCode())
                     .errorMessage(errorMessage)
                     .build();
-
 
             slackService.sendMessage(message);
             log.error("배치 실패. Job: {}, Step: {}, 오류: {}", stepExecution.getJobExecution().getJobInstance().getJobName(),
