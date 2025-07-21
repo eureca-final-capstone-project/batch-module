@@ -1,4 +1,4 @@
-package eureca.capstone.project.batch.component;
+package eureca.capstone.project.batch.component.processor;
 
 import eureca.capstone.project.batch.user.entity.UserData;
 import eureca.capstone.project.batch.user.repository.PlanRepository;

@@ -1,4 +1,4 @@
-package eureca.capstone.project.batch.component;
+package eureca.capstone.project.batch.component.listener;
 
 import eureca.capstone.project.batch.slack.dto.SlackMessageRequestDto;
 import eureca.capstone.project.batch.slack.service.SlackService;
@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class UserDataListener implements StepExecutionListener, JobExecutionListener {
+public class ExecutionListener implements StepExecutionListener, JobExecutionListener {
 
     private final SlackService slackService;
 
@@ -65,7 +65,7 @@ public class UserDataListener implements StepExecutionListener, JobExecutionList
             log.info("배치 성공. Job: {}, Step: {}, Read: {}, Write: {}", stepExecution.getJobExecution().getJobInstance().getJobName(),
                     stepExecution.getStepName(), readCount, writeCount);
 
-            String msg = String.format("UserData 초기화 완료 - 총 read: %d, write: %d", readCount, writeCount);
+            String msg = String.format("[%s] Batch 작업 완료 - 총 read: %d, write: %d", stepExecution.getJobExecution().getJobInstance().getJobName(), readCount, writeCount);
             return new ExitStatus(ExitStatus.COMPLETED.getExitCode(), msg);
         }
     }

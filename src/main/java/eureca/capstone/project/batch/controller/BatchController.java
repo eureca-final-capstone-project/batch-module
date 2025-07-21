@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.*;
 
 @Tag(name = "Batch", description = "배치 작업 관리 API")
@@ -31,6 +32,7 @@ public class BatchController {
 
     // Job Beans
     private final Job resetUserDataJob;
+    private final Job transactionStatisticJob;
     private final Job restrictionReleaseJob;
     private final Job expireGeneralSaleFeedJob;
 
@@ -47,13 +49,31 @@ public class BatchController {
         try {
             log.info("[runResetDataBatchManual] 사용자 데이터 초기화 배치 수동 실행");
             jobLauncher.run(resetUserDataJob, new JobParametersBuilder()
+                    .addLong("time", System.currentTimeMillis())
                     .addString("currentDate", LocalDate.now().toString())
-                    .addLong("timestamp", System.currentTimeMillis())
                     .toJobParameters());
+            log.info("[runResetDataBatchManual] 사용자 데이터 초기화 배치 수동 실행 완료");
             return "사용자 데이터 초기화 배치 수동 실행 완료";
         } catch (Exception e) {
             log.error("[runResetDataBatchManual] 사용자 데이터 초기화 배치 수동 실행 실패", e);
             return "사용자 데이터 초기화 배치 수동 실행 실패: " + e.getMessage();
+        }
+    }
+
+    @Operation(summary = "거래량/시세 통계 배치 수동 실행", description = "매 시간마다 이전시간의 거래량과 통신사별 시세 통계를 내리는 배치를 수동으로 즉시 실행합니다.")
+    @PostMapping("/statistic-transaction")
+    public String runStatisticBatchManual() {
+        try {
+            log.info("[runStatisticBatchManual] 거래량/시세 통계 배치 수동 실행");
+            jobLauncher.run(transactionStatisticJob, new JobParametersBuilder()
+                    .addLong("time", System.currentTimeMillis())
+                    .addString("currentTime", LocalDateTime.now().toString())
+                    .toJobParameters());
+            log.info("[runStatisticBatchManual] 거래량/시세 통계 배치 수동 실행 완료");
+            return "거래량/시세 통계 배치 수동 실행 완료";
+        } catch (Exception e) {
+            log.error("[runStatisticBatchManual] 거래량/시세 통계 배치 수동 실행 실패", e);
+            return "거래량/시세 통계 배치 수동 실행 실패: " + e.getMessage();
         }
     }
 
