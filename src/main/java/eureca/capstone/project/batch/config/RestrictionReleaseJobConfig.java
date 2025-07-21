@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
@@ -16,8 +17,10 @@ import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.batch.item.data.builder.RepositoryItemWriterBuilder;
 import org.springframework.batch.item.database.JpaPagingItemReader;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.LocalDateTime;
@@ -47,14 +50,22 @@ public class RestrictionReleaseJobConfig {
     public Step restrictionReleaseStep() {
         return new StepBuilder("restrictionReleaseStep", jobRepository)
                 .<UserAuthority, UserAuthority>chunk(CHUNK_SIZE, transactionManager)
-                .reader(restrictionReleaseReader())
+                .reader(restrictionReleaseReader(null))
                 .processor(restrictionReleaseProcessor())
                 .writer(restrictionReleaseWriter())
+                .faultTolerant()
+                .retryLimit(3)
+                .retry(DataIntegrityViolationException.class)
+                .skipLimit(10)
+                .skip(NullPointerException.class)
                 .build();
     }
 
     @Bean
-    public JpaPagingItemReader<UserAuthority> restrictionReleaseReader() {
+    @StepScope
+    public JpaPagingItemReader<UserAuthority> restrictionReleaseReader(
+            @Value("#{jobParameters[now]}") String now
+    ) {
         JpaPagingItemReader<UserAuthority> reader = new JpaPagingItemReader<>();
 
         String jpql = """
@@ -67,8 +78,8 @@ public class RestrictionReleaseJobConfig {
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setPageSize(CHUNK_SIZE);
         reader.setQueryString(jpql);
-        reader.setParameterValues(Map.of("now", LocalDateTime.now()));
-        reader.setName("restoreSanctionReader");
+        reader.setParameterValues(Map.of("now", now));
+        reader.setName("restrictionReleaseReader");
         return reader;
     }
 

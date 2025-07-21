@@ -23,10 +23,11 @@ public class RestrictionReleaseJobScheduler {
     }
 
     @Scheduled(cron = "0 39 * * * *")
-    public void runExpireGeneralSaleFeedJob() throws Exception {
+    public void runRestrictionReleaseJob() throws Exception {
         log.info("사용자 제재 만료 처리 배치 작업을 시작합니다.");
         try {
             JobParameters jobParameters = new JobParametersBuilder()
+                    .addString("now", LocalDateTime.now().toString())
                     .addLong("timestamp", System.currentTimeMillis())
                     .toJobParameters();
 
