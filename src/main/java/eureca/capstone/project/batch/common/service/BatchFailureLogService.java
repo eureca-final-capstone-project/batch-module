@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -37,10 +38,10 @@ public class BatchFailureLogService {
     }
 
     public List<BatchFailureLog> getFailures(String jobName, String stepName,
-                                             BatchFailureLog.FailureType failureType,
+                                             Set<BatchFailureLog.FailureType> failureTypes,
                                              Boolean reprocessed) {
         return batchFailureLogRepository.findFailures(
-                jobName, stepName, failureType,
+                jobName, stepName, failureTypes,
                 reprocessed != null ? reprocessed : false
         );
     }

@@ -7,28 +7,19 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Set;
 
 @Repository
 public interface BatchFailureLogRepository extends JpaRepository<BatchFailureLog, Long> {
 
-    List<BatchFailureLog> findByJobNameAndStepNameAndReprocessed(
-            String jobName, String stepName, boolean reprocessed);
-
-    List<BatchFailureLog> findByJobNameAndReprocessed(String jobName, boolean reprocessed);
-
-    List<BatchFailureLog> findByReprocessed(boolean reprocessed);
-
-    List<BatchFailureLog> findByFailureTypeAndReprocessed(
-            BatchFailureLog.FailureType failureType, boolean reprocessed);
-
     @Query("SELECT f FROM BatchFailureLog f WHERE " +
             "(:jobName IS NULL OR f.jobName = :jobName) AND " +
             "(:stepName IS NULL OR f.stepName = :stepName) AND " +
-            "(:failureType IS NULL OR f.failureType = :failureType) AND " +
-            "f.reprocessed = :reprocessed " +
+            "(:failureTypes IS NULL OR f.failureType IN :failureTypes) AND " + // [수정] IN 절 사용
+            "(:reprocessed IS NULL OR f.reprocessed = :reprocessed) " +         // [개선] reprocessed도 선택적 필터링
             "ORDER BY f.failedAt DESC")
     List<BatchFailureLog> findFailures(@Param("jobName") String jobName,
                                        @Param("stepName") String stepName,
-                                       @Param("failureType") BatchFailureLog.FailureType failureType,
-                                       @Param("reprocessed") boolean reprocessed);
+                                       @Param("failureTypes") Set<BatchFailureLog.FailureType> failureTypes, // [수정] Set<Enum> 타입으로 변경
+                                       @Param("reprocessed") Boolean reprocessed); // [개선] Boolean 래퍼 타입으로 변경
 }

@@ -11,16 +11,12 @@ import org.springframework.batch.core.*;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.JobOperator;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Tag(name = "Batch", description = "배치 작업 관리 API")
 @Slf4j
@@ -99,29 +95,32 @@ public class BatchController {
      * 2. 실패/스킵된 아이템 재처리 API
      * ================================== */
 
-    @Operation(summary = "재처리 필요한 실패/스킵 로그 조회", description = "배치 처리 중 실패(Skip, Retry 소진)하여 재처리가 필요한 항목들의 목록을 조회합니다.")
+    @Operation(summary = "재처리 필요한 실패/스킵 로그 조회", description = "배치 처리 중 스킵되어 '실제로 재처리가 가능한' 항목들의 목록을 조회합니다. 기본적으로 SKIP 타입의 로그만 조회합니다.")
     @GetMapping("/failures")
-    public ResponseEntity<List<BatchFailureLog>> getUnreprocessedFailures(
+    public ResponseEntity<List<BatchFailureLog>> getReprocessableFailures(
             @Parameter(name = "jobName", description = "조회할 특정 Job의 이름 (선택 사항)", example = "restrictionReleaseJob")
             @RequestParam(required = false) String jobName) {
-        // reprocessed가 false인 로그만 조회
-        List<BatchFailureLog> failures = batchFailureLogService.getFailures(jobName, null, null, false);
+
+        // [개선점] 재처리가 의미 있는 FailureType만 기본으로 조회하도록 설정
+        // 현재는 SKIP만 재처리 대상입니다.
+        Set<BatchFailureLog.FailureType> reprocessableTypes = Set.of(BatchFailureLog.FailureType.SKIP);
+
+        // reprocessed가 false이고, 타입이 재처리 대상인 로그만 조회
+        List<BatchFailureLog> failures = batchFailureLogService.getFailures(jobName, null, reprocessableTypes, false);
         return ResponseEntity.ok(failures);
     }
 
-    @Operation(summary = "특정 실패/스킵 로그 재처리", description = "실패/스킵 로그 ID를 사용하여 해당 항목을 수동으로 재처리합니다.")
-    @PostMapping("/failures/{failureLogId}/reprocess")
-    public ResponseEntity<String> reprocessFailedItem(
-            @Parameter(name = "failureLogId", description = "재처리할 실패 로그의 ID", required = true, example = "1")
-            @PathVariable Long failureLogId) {
-        log.info("[reprocessFailedItem] 실패 항목 재처리 요청. FailureLog ID: {}", failureLogId);
-        try {
-            batchFailureLogService.reprocessFailedItem(failureLogId);
-            return ResponseEntity.ok("재처리 성공. Log ID: " + failureLogId);
-        } catch (Exception e) {
-            log.error("[reprocessFailedItem] 실패 항목 재처리 중 오류 발생. Log ID: {}", failureLogId, e);
-            return ResponseEntity.badRequest().body("재처리 실패: " + e.getMessage());
-        }
+    @Operation(summary = "모든 유형의 실패/스킵 로그 조회", description = "재처리 가능 여부와 상관없이 모든 유형(RETRY_EXHAUSTED 포함)의 실패/스킵 로그를 조회합니다. (디버깅용)")
+    @GetMapping("/failures/all")
+    public ResponseEntity<List<BatchFailureLog>> getAllFailures(
+            @Parameter(name = "jobName", description = "조회할 특정 Job의 이름 (선택 사항)", example = "restrictionReleaseJob")
+            @RequestParam(required = false) String jobName,
+            @Parameter(name = "reprocessed", description = "재처리 완료 여부 필터링 (선택 사항)", example = "false")
+            @RequestParam(required = false) Boolean reprocessed) {
+
+        // 모든 타입의 로그를 조회 (types 파라미터를 null로 전달)
+        List<BatchFailureLog> failures = batchFailureLogService.getFailures(jobName, null, null, reprocessed);
+        return ResponseEntity.ok(failures);
     }
 
     @Operation(summary = "실패한 월 데이터 배치 재시작", description = "가장 최근에 실패한 'resetUserDataJob'을 찾아 재시작합니다.")
