@@ -1,6 +1,6 @@
 package eureca.capstone.project.batch.config;
 
-import eureca.capstone.project.batch.component.UserDataListener;
+import eureca.capstone.project.batch.component.listener.UserDataListener;
 import eureca.capstone.project.batch.component.UserDataProcessor;
 import eureca.capstone.project.batch.user.entity.UserData;
 import jakarta.persistence.EntityManagerFactory;

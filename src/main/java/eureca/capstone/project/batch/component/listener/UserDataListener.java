@@ -1,5 +1,6 @@
-package eureca.capstone.project.batch.component;
+package eureca.capstone.project.batch.component.listener;
 
+import eureca.capstone.project.batch.component.external.DiscordNotificationService;
 import eureca.capstone.project.batch.slack.dto.SlackMessageRequestDto;
 import eureca.capstone.project.batch.slack.service.SlackService;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
 import org.springframework.stereotype.Component;
 
+import java.awt.*;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
@@ -16,6 +19,8 @@ import java.util.stream.Collectors;
 public class UserDataListener implements StepExecutionListener, JobExecutionListener {
 
     private final SlackService slackService;
+    private final DiscordNotificationService discordNotificationService;
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Override
     public void beforeStep(StepExecution stepExecution) {
@@ -23,6 +28,8 @@ public class UserDataListener implements StepExecutionListener, JobExecutionList
 
     @Override
     public ExitStatus afterStep(StepExecution stepExecution) {
+        String jobName = stepExecution.getJobExecution().getJobInstance().getJobName();
+        String stepName = stepExecution.getStepName();
         Long readCount = stepExecution.getReadCount();
         Long writeCount = stepExecution.getWriteCount();
 
@@ -57,6 +64,29 @@ public class UserDataListener implements StepExecutionListener, JobExecutionList
                     .build();
 
             slackService.sendMessage(message);
+            String discordTitle = String.format("❌ BATCH-STEP-FAILURE : %s", jobName);
+            String discordDescription = String.format(
+                    """
+                    *Step* : `%s`
+                    *Start* : %s
+                    *End* : %s
+                    *Read/Write* : %d / %d
+                    *Status* : `%s`
+                    ---
+                    **Error Message**
+                    %s
+                    ```
+         
+                    """,
+                    stepName,
+                    stepExecution.getStartTime().format(FORMATTER),
+                    stepExecution.getEndTime().format(FORMATTER),
+                    readCount,
+                    writeCount,
+                    stepExecution.getExitStatus().getExitCode(),
+                    errorMessage
+            );
+            discordNotificationService.sendMessage(discordTitle, discordDescription, Color.RED);
             log.error("배치 실패. Job: {}, Step: {}, 오류: {}", stepExecution.getJobExecution().getJobInstance().getJobName(),
                     stepExecution.getStepName(), errorMessage);
 
@@ -64,6 +94,24 @@ public class UserDataListener implements StepExecutionListener, JobExecutionList
         } else{
             log.info("배치 성공. Job: {}, Step: {}, Read: {}, Write: {}", stepExecution.getJobExecution().getJobInstance().getJobName(),
                     stepExecution.getStepName(), readCount, writeCount);
+
+            // Discord 성공 알림 전송
+            String discordTitle = String.format("✅ BATCH-STEP-SUCCESS : %s", jobName);
+            String discordDescription = String.format(
+                    """
+                    *Step* : `%s`
+                    *ReadCount* : %d
+                    *WriteCount* : %d
+                    *CommitCount* : %d
+                    *Status* : `%s`
+                    """,
+                    stepName,
+                    readCount,
+                    writeCount,
+                    stepExecution.getCommitCount(),
+                    stepExecution.getExitStatus().getExitCode()
+            );
+            discordNotificationService.sendMessage(discordTitle, discordDescription, Color.BLUE);
 
             String msg = String.format("UserData 초기화 완료 - 총 read: %d, write: %d", readCount, writeCount);
             return new ExitStatus(ExitStatus.COMPLETED.getExitCode(), msg);
