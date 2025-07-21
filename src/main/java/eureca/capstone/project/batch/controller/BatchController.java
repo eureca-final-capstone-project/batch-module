@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -21,6 +22,7 @@ public class BatchController {
 
     private final JobLauncher jobLauncher;
     private final Job resetUserDataJob;
+    private final Job transactionStatisticJob;
     private final JobOperator jobOperator;
     private final JobExplorer jobExplorer;
 
@@ -37,6 +39,22 @@ public class BatchController {
             return "사용자 데이터 초기화 배치 수동 실행 완료";
         } catch (Exception e) {
             log.error("[runResetDataBatchManual] 사용자 데이터 초기화 배치 수동 실행 실패", e);
+            return "사용자 데이터 초기화 배치 수동 실행 실패: " + e.getMessage();
+        }
+    }
+
+    @PostMapping("/statistic-transaction")
+    public String runStatisticBatchManual() {
+        try {
+            log.info("[runStatisticBatchManual] 사용자 데이터 초기화 배치 수동 실행");
+            jobLauncher.run(transactionStatisticJob, new JobParametersBuilder()
+                    .addLong("time", System.currentTimeMillis())
+                    .addString("currentTime", LocalDateTime.now().toString())
+                    .toJobParameters());
+            log.info("[runStatisticBatchManual] 사용자 데이터 초기화 배치 수동 실행 완료");
+            return "사용자 데이터 초기화 배치 수동 실행 완료";
+        } catch (Exception e) {
+            log.error("[runStatisticBatchManual] 사용자 데이터 초기화 배치 수동 실행 실패", e);
             return "사용자 데이터 초기화 배치 수동 실행 실패: " + e.getMessage();
         }
     }

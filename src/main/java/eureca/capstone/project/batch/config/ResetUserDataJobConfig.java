@@ -1,6 +1,6 @@
 package eureca.capstone.project.batch.config;
 
-import eureca.capstone.project.batch.component.listener.UserDataListener;
+import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.processor.UserDataProcessor;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.user.entity.UserData;
@@ -20,18 +20,12 @@ import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilde
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.dao.TransientDataAccessException;
-import org.springframework.retry.backoff.FixedBackOffPolicy;
-import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
-import java.io.IOException;
-import java.sql.SQLRecoverableException;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Configuration
@@ -43,7 +37,7 @@ public class ResetUserDataJobConfig {
     private final EntityManagerFactory entityManagerFactory;
     private final UserDataProcessor userDataProcessor;
     private final DataSource dataSource;
-    private final UserDataListener userDataListener;
+    private final ExecutionListener executionListener;
     private final RetryPolicy retryPolicy;
 
     @Bean
@@ -63,7 +57,7 @@ public class ResetUserDataJobConfig {
                 .faultTolerant()
                 .retryPolicy(retryPolicy.createRetryPolicy())
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
-                .listener(userDataListener)
+                .listener(executionListener)
                 .build();
     }
 
