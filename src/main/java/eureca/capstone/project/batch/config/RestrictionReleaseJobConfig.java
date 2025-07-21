@@ -2,6 +2,9 @@ package eureca.capstone.project.batch.config;
 
 import eureca.capstone.project.batch.auth.entity.UserAuthority;
 import eureca.capstone.project.batch.auth.repository.UserAuthorityRepository;
+import eureca.capstone.project.batch.component.listener.BatchFailureHelper;
+import eureca.capstone.project.batch.component.listener.CustomRetryListener;
+import eureca.capstone.project.batch.component.listener.CustomSkipListener;
 import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +37,8 @@ public class RestrictionReleaseJobConfig {
     private final EntityManagerFactory entityManagerFactory;
     private final UserAuthorityRepository userAuthorityRepository;
     private final JobCompletionNotificationListener jobCompletionNotificationListener;
+    private final CustomSkipListener customSkipListener;
+    private final CustomRetryListener customRetryListener;
 
     private static final int CHUNK_SIZE = 100;
 
@@ -57,6 +62,8 @@ public class RestrictionReleaseJobConfig {
                 .retry(DataIntegrityViolationException.class)
                 .skipLimit(10)
                 .skip(NullPointerException.class)
+                .listener(customSkipListener)
+                .listener(customRetryListener)
                 .build();
     }
 
