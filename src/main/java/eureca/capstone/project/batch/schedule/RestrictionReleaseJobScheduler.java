@@ -22,7 +22,7 @@ public class RestrictionReleaseJobScheduler {
         this.restrictionReleaseJob = restrictionReleaseJob;
     }
 
-    @Scheduled(cron = "0 39 * * * *")
+    @Scheduled(cron = "0 0 0 * * *")
     public void runRestrictionReleaseJob() throws Exception {
         log.info("사용자 제재 만료 처리 배치 작업을 시작합니다.");
         try {
