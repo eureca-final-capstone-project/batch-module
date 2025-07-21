@@ -27,7 +27,7 @@ public class RestrictionReleaseJobScheduler {
         log.info("사용자 제재 만료 처리 배치 작업을 시작합니다.");
         try {
             JobParameters jobParameters = new JobParametersBuilder()
-                    .addString("now", LocalDateTime.now().toString())
+                    .addLocalDateTime("now", LocalDateTime.now())
                     .addLong("timestamp", System.currentTimeMillis())
                     .toJobParameters();
 

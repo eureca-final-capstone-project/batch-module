@@ -27,7 +27,8 @@ public class ExpireGeneralSaleFeedScheduler {
         log.info("게시글 기간 만료 배치 시작 (스케줄러)");
         try{
             JobParameters jobParameters = new JobParametersBuilder()
-                    .addString("targetDateTime", LocalDateTime.now().toString())
+                    .addLocalDateTime("targetDateTime", LocalDateTime.now())
+                    .addLong("timestamp", System.currentTimeMillis()) // 고유성을 위해 timestamp 추가 권장
                     .toJobParameters();
 
             jobLauncher.run(expireGeneralSaleFeedJob, jobParameters);

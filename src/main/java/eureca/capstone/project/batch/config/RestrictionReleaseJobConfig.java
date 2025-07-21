@@ -18,12 +18,14 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
+import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -70,10 +72,7 @@ public class RestrictionReleaseJobConfig {
     @Bean
     @StepScope
     public JpaPagingItemReader<UserAuthority> restrictionReleaseReader(
-            @Value("#{jobParameters[now]}") String now
-    ) {
-        JpaPagingItemReader<UserAuthority> reader = new JpaPagingItemReader<>();
-
+            @Value("#{jobParameters['now']}") LocalDateTime now) {
         String jpql = """
                 SELECT ua FROM UserAuthority ua
                 JOIN FETCH ua.user u
@@ -81,12 +80,13 @@ public class RestrictionReleaseJobConfig {
                 WHERE ua.expiredAt < :now
                 """;
 
-        reader.setEntityManagerFactory(entityManagerFactory);
-        reader.setPageSize(CHUNK_SIZE);
-        reader.setQueryString(jpql);
-        reader.setParameterValues(Map.of("now", now));
-        reader.setName("restrictionReleaseReader");
-        return reader;
+        return new JpaPagingItemReaderBuilder<UserAuthority>()
+                .name("restrictionReleaseReader")
+                .entityManagerFactory(entityManagerFactory)
+                .pageSize(CHUNK_SIZE)
+                .queryString(jpql)
+                .parameterValues(Map.of("now", now))
+                .build();
     }
 
     @Bean

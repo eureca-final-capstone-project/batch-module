@@ -88,9 +88,8 @@ public class ExpireGeneralSaleFeedJobConfig {
     @Bean
     @StepScope
     public JpaPagingItemReader<TransactionFeed> expireGeneralSaleFeedReader(
-            @Value("#{jobParameters['targetDateTime']}") String targetDateTimeStr) {
+            @Value("#{jobParameters['targetDateTime']}") LocalDateTime targetDateTime) {
 
-        LocalDateTime targetDateTime = LocalDateTime.parse(targetDateTimeStr);
 
         String jpqlQuery = """
                 SELECT tf FROM TransactionFeed tf
