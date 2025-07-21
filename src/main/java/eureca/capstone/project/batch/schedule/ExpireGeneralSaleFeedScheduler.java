@@ -25,11 +25,16 @@ public class ExpireGeneralSaleFeedScheduler {
     @Scheduled(cron = "0 0 0 * * *")
     public void runExpireGeneralSaleFeedJob() throws Exception {
         log.info("게시글 기간 만료 배치 시작 (스케줄러)");
-        JobParameters jobParameters = new JobParametersBuilder()
-                .addString("targetDateTime", LocalDateTime.now().toString())
-                .toJobParameters();
+        try{
+            JobParameters jobParameters = new JobParametersBuilder()
+                    .addString("targetDateTime", LocalDateTime.now().toString())
+                    .toJobParameters();
 
-        jobLauncher.run(expireGeneralSaleFeedJob, jobParameters);
-        log.info("게시글 기간 만료 배치 종료 (스케줄러)");
+            jobLauncher.run(expireGeneralSaleFeedJob, jobParameters);
+            log.info("게시글 기간 만료 배치 종료 (스케줄러)");
+        } catch(Exception e){
+            log.error("게시글 기간 만료 배치중 오류 발생", e);
+
+        }
     }
 }

@@ -56,11 +56,17 @@ public class RestrictionReleaseJobConfig {
     @Bean
     public JpaPagingItemReader<UserAuthority> restrictionReleaseReader() {
         JpaPagingItemReader<UserAuthority> reader = new JpaPagingItemReader<>();
+
+        String jpql = """
+                SELECT ua FROM UserAuthority ua
+                JOIN FETCH ua.user u
+                JOIN FETCH ua.authority a
+                WHERE ua.expiredAt < :now
+                """;
+
         reader.setEntityManagerFactory(entityManagerFactory);
         reader.setPageSize(CHUNK_SIZE);
-        reader.setQueryString(
-                "SELECT ua FROM UserAuthority ua WHERE ua.expiredAt IS NOT NULL AND ua.expiredAt <= :now"
-        );
+        reader.setQueryString(jpql);
         reader.setParameterValues(Map.of("now", LocalDateTime.now()));
         reader.setName("restoreSanctionReader");
         return reader;
