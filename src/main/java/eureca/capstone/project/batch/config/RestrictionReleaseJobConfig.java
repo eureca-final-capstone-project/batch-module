@@ -2,6 +2,7 @@ package eureca.capstone.project.batch.config;
 
 import eureca.capstone.project.batch.auth.entity.UserAuthority;
 import eureca.capstone.project.batch.auth.repository.UserAuthorityRepository;
+import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,9 +14,6 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.data.RepositoryItemReader;
-import org.springframework.batch.item.data.RepositoryItemWriter;
-import org.springframework.batch.item.data.builder.RepositoryItemWriterBuilder;
 import org.springframework.batch.item.database.JpaPagingItemReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -23,7 +21,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,12 +33,14 @@ public class RestrictionReleaseJobConfig {
     private final PlatformTransactionManager transactionManager;
     private final EntityManagerFactory entityManagerFactory;
     private final UserAuthorityRepository userAuthorityRepository;
+    private final JobCompletionNotificationListener jobCompletionNotificationListener;
 
     private static final int CHUNK_SIZE = 100;
 
     @Bean
     public Job restrictionReleaseJob() {
         return new JobBuilder("restrictionReleaseJob", jobRepository)
+                .listener(jobCompletionNotificationListener)
                 .start(restrictionReleaseStep())
                 .build();
     }

@@ -6,12 +6,16 @@ import org.springframework.batch.core.*;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.JobOperator;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -21,6 +25,7 @@ public class BatchController {
 
     private final JobLauncher jobLauncher;
     private final Job resetUserDataJob;
+    private final Job restrictionReleaseJob;
     private final JobOperator jobOperator;
     private final JobExplorer jobExplorer;
 
@@ -68,5 +73,51 @@ public class BatchController {
         }
         log.info("[restartFailedResetUserDataJob] 실패한 Job 없음");
         return "실패한 Job이 없음.";
+    }
+
+    // 실패한 Job 목록 조회
+    @GetMapping("/{jobName}/failures")
+    public ResponseEntity<List<Map<String, Object>>> getFailedExecutions(@PathVariable("jobName") String jobName) {
+        List<Map<String, Object>> failedExecutionsInfo = new ArrayList<>();
+
+        // jobExplorer를 통해 해당 jobName의 인스턴스를 가져옵니다. (최근 100개)
+        List<JobInstance> jobInstances = jobExplorer.getJobInstances(jobName, 0, 100);
+
+        for (JobInstance instance : jobInstances) {
+            List<JobExecution> jobExecutions = jobExplorer.getJobExecutions(instance);
+            for (JobExecution execution : jobExecutions) {
+                if (execution.getStatus() == BatchStatus.FAILED) {
+                    Map<String, Object> info = new HashMap<>();
+                    info.put("executionId", execution.getId());
+                    info.put("jobName", execution.getJobInstance().getJobName());
+                    info.put("startTime", execution.getStartTime());
+                    info.put("endTime", execution.getEndTime());
+                    info.put("status", execution.getStatus());
+                    info.put("jobParameters", execution.getJobParameters().toString());
+                    failedExecutionsInfo.add(info);
+                }
+            }
+        }
+        return ResponseEntity.ok(failedExecutionsInfo);
+    }
+
+    //만료된 사용자 제재를 해제하는 배치
+    @PostMapping("/run-restriction-release")
+    public String runRestrictionReleaseJobManual() {
+        log.info("[runRestrictionReleaseJobManual] 사용자 제재 해제 배치 수동 실행");
+        try {
+            JobParameters jobParameters = new JobParametersBuilder()
+                    .addString("now", LocalDateTime.now().toString())
+                    .addLong("timestamp", System.currentTimeMillis())
+                    .toJobParameters();
+
+            jobLauncher.run(restrictionReleaseJob, jobParameters);
+
+            log.info("[runRestrictionReleaseJobManual] 사용자 제재 해제 배치 수동 실행 완료");
+            return "사용자 제재 해제 배치 수동 실행 완료";
+        } catch (Exception e) {
+            log.error("[runRestrictionReleaseJobManual] 사용자 제재 해제 배치 수동 실행 실패", e);
+            return "사용자 제재 해제 배치 수동 실행 실패: " + e.getMessage();
+        }
     }
 }
