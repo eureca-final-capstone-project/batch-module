@@ -1,7 +1,8 @@
 package eureca.capstone.project.batch.config;
 
-import eureca.capstone.project.batch.component.UserDataListener;
-import eureca.capstone.project.batch.component.UserDataProcessor;
+import eureca.capstone.project.batch.component.listener.UserDataListener;
+import eureca.capstone.project.batch.component.processor.UserDataProcessor;
+import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.user.entity.UserData;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +36,7 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-public class BatchConfig {
+public class ResetUserDataJobConfig {
 
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
@@ -43,6 +44,7 @@ public class BatchConfig {
     private final UserDataProcessor userDataProcessor;
     private final DataSource dataSource;
     private final UserDataListener userDataListener;
+    private final RetryPolicy retryPolicy;
 
     @Bean
     public Job resetUserDataJob() {
@@ -59,8 +61,8 @@ public class BatchConfig {
                 .processor(userDataProcessor)
                 .writer(userDataWriter())
                 .faultTolerant()
-                .retryPolicy(retryPolicy())
-                .backOffPolicy(fixedBackOffPolicy())
+                .retryPolicy(retryPolicy.createRetryPolicy())
+                .backOffPolicy(retryPolicy.createBackoffPolicy())
                 .listener(userDataListener)
                 .build();
     }
@@ -70,7 +72,7 @@ public class BatchConfig {
     public JpaPagingItemReader<UserData> userDataJpaReader(
             @Value("#{jobParameters['currentDate']}") String currentDate) {
         LocalDate date = LocalDate.parse(currentDate);
-        Integer today = date.getDayOfMonth()-2;
+        Integer today = date.getDayOfMonth();
         Integer lastDay = date.lengthOfMonth();
         Map<String, Object> params = new HashMap<>();
         params.put("today", today);
@@ -100,24 +102,4 @@ public class BatchConfig {
                 .assertUpdates(false)
                 .build();
     }
-
-    @Bean
-    public SimpleRetryPolicy retryPolicy(){
-        Map<Class<? extends Throwable>, Boolean> retryableExceptions = new HashMap<>();
-        retryableExceptions.put(IOException.class, true);
-        retryableExceptions.put(TimeoutException.class, true);
-        retryableExceptions.put(SQLRecoverableException.class, true);
-        retryableExceptions.put(TransientDataAccessException.class, true);
-
-        return new SimpleRetryPolicy(3, retryableExceptions);
-    }
-
-    @Bean
-    public FixedBackOffPolicy fixedBackOffPolicy(){
-        FixedBackOffPolicy fixedBackOffPolicy = new FixedBackOffPolicy();
-        fixedBackOffPolicy.setBackOffPeriod(2000);
-        return fixedBackOffPolicy;
-    }
-
-
 }
