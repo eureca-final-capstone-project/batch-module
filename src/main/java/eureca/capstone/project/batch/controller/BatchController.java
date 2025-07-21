@@ -127,7 +127,6 @@ public class BatchController {
     @Operation(summary = "실패한 월 데이터 배치 재시작", description = "가장 최근에 실패한 'resetUserDataJob'을 찾아 재시작합니다.")
     @PostMapping("/restart-failed")
     public String restartFailedResetUserDataJob() {
-        // ... (기존 로직)
         String jobName = "resetUserDataJob";
         List<JobInstance> jobInstances = jobExplorer.getJobInstances(jobName, 0, 10);
 
