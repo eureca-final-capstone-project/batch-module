@@ -6,12 +6,11 @@ import org.springframework.batch.core.*;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.JobOperator;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -44,7 +43,7 @@ public class BatchController {
 
     // 실패한 배치 재시작
     @PostMapping("/restart-failed")
-    public String restartFailedResetUserDataJob() throws Exception {
+    public String restartFailedResetUserDataJob() {
         String jobName = "resetUserDataJob";
         List<JobInstance> jobInstances = jobExplorer.getJobInstances(jobName, 0, 10);
 
@@ -60,7 +59,7 @@ public class BatchController {
                         log.info("[restartFailedResetUserDataJob] 재시작 성공. 기존 executionId: {}, 재시작 executionId: {}", failedId, restartedId);
                         return "재시작 성공: " + restartedId;
                     } catch (Exception e){
-                        log.error("[restartFailedResetUserDataJob] 재시작 실패: ", e.getMessage());
+                        log.error("[restartFailedResetUserDataJob] 재시작 실패: {}", e.getMessage());
                         return "재시작 실패: " + e.getMessage();
                     }
 

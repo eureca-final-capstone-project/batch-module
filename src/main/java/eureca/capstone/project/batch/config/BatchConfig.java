@@ -65,26 +65,21 @@ public class BatchConfig {
                 .build();
     }
 
-    /* TODO.
-        - plan 조회 쿼리가 user 수만큼 나감. (UserData - Plan 사이 연관관계 없음.)
-     */
     @Bean
     @StepScope
     public JpaPagingItemReader<UserData> userDataJpaReader(
             @Value("#{jobParameters['currentDate']}") String currentDate) {
         LocalDate date = LocalDate.parse(currentDate);
-        Integer today = date.getDayOfMonth();
+        Integer today = date.getDayOfMonth()-2;
         Integer lastDay = date.lengthOfMonth();
         Map<String, Object> params = new HashMap<>();
         params.put("today", today);
 
         String query;
         if(today.equals(lastDay)) {
-//            query = "select ud from UserData ud join fetch ud.plan where ud.resetDataAt >= :today"; // 연관관계 설정시
-            query = "select ud from UserData ud where ud.resetDataAt >= :today";
+            query = "select ud from UserData ud join fetch ud.plan where ud.resetDataAt >= :today";
         } else{
-//            query = "select ud from UserData ud join fetch ud.plan where ud.resetDataAt = :today"; // 연관관계 설정시
-            query = "select ud from UserData ud where ud.resetDataAt = :today";
+            query = "select ud from UserData ud join fetch ud.plan where ud.resetDataAt = :today";
         }
 
         return new JpaPagingItemReaderBuilder<UserData>()
