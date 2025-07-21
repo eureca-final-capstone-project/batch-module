@@ -23,7 +23,7 @@ public class MarketStatistic extends BaseEntity {
     private Long statisticsId;
 
     @Column(name = "average_price")
-    private double averagePrice;
+    private long averagePrice;
 
     @Column(name = "transaction_amount")
     private long transactionAmount;
