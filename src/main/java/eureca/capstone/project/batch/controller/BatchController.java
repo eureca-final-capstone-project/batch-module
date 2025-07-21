@@ -60,19 +60,20 @@ public class BatchController {
         }
     }
 
+    @Operation(summary = "거래량/시세 통계 배치 수동 실행", description = "매 시간마다 이전시간의 거래량과 통신사별 시세 통계를 내리는 배치를 수동으로 즉시 실행합니다.")
     @PostMapping("/statistic-transaction")
     public String runStatisticBatchManual() {
         try {
-            log.info("[runStatisticBatchManual] 사용자 데이터 초기화 배치 수동 실행");
+            log.info("[runStatisticBatchManual] 거래량/시세 통계 배치 수동 실행");
             jobLauncher.run(transactionStatisticJob, new JobParametersBuilder()
                     .addLong("time", System.currentTimeMillis())
                     .addString("currentTime", LocalDateTime.now().toString())
                     .toJobParameters());
-            log.info("[runStatisticBatchManual] 사용자 데이터 초기화 배치 수동 실행 완료");
-            return "사용자 데이터 초기화 배치 수동 실행 완료";
+            log.info("[runStatisticBatchManual] 거래량/시세 통계 배치 수동 실행 완료");
+            return "거래량/시세 통계 배치 수동 실행 완료";
         } catch (Exception e) {
-            log.error("[runStatisticBatchManual] 사용자 데이터 초기화 배치 수동 실행 실패", e);
-            return "사용자 데이터 초기화 배치 수동 실행 실패: " + e.getMessage();
+            log.error("[runStatisticBatchManual] 거래량/시세 통계 배치 수동 실행 실패", e);
+            return "거래량/시세 통계 배치 수동 실행 실패: " + e.getMessage();
         }
     }
 
