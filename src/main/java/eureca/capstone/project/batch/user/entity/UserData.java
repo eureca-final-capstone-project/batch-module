@@ -20,7 +20,11 @@ public class UserData extends BaseEntity {
     private Long userDataId;
 
     private Long userId;
-    private Long planId;
+
+    @JoinColumn(name = "plan_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Plan plan;
+
     private Long totalDataMb; // 총 소유 데이터
     private Long sellableDataMb; // 판매 가능한 데이터
     private Long buyerDataMb; // 구매한 데이터
