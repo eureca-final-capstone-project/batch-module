@@ -15,14 +15,13 @@ import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 @Slf4j
@@ -139,7 +138,8 @@ public class BatchFailureLogService {
         TransactionFeed transactionFeed = transactionFeedRepository.findById(transactionFeedId)
                 .orElseThrow(() -> new RuntimeException("TransactionFeed를 찾을 수 없습니다: " + transactionFeedId));
 
-        Optional<Bids> highestBid = bidsRepository.findTopByTransactionFeed_TransactionFeedIdOrderByBidAmountDescCreatedAtAsc(transactionFeed.getTransactionFeedId());
+        List<Bids> bids = bidsRepository.findHighestBidWithUser(transactionFeed.getTransactionFeedId(), PageRequest.of(0,1));
+        Optional<Bids> highestBid = bids.isEmpty() ? Optional.empty() : Optional.of(bids.get(0));
 
         if(highestBid.isPresent()){
             Bids bid = highestBid.get();

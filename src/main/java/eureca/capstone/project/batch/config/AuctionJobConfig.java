@@ -8,6 +8,7 @@ import eureca.capstone.project.batch.transaction_feed.entity.Bids;
 import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
 import eureca.capstone.project.batch.transaction_feed.repository.BidsRepository;
 import eureca.capstone.project.batch.user.entity.User;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,9 +26,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -110,13 +113,13 @@ public class AuctionJobConfig {
         return feed -> {
             log.info("[AuctionJobConfig] 판매글 처리 시작: ID = {}", feed.getTransactionFeedId());
 
-            Optional<Bids> highestBid = bidsRepository.findTopByTransactionFeed_TransactionFeedIdOrderByBidAmountDescCreatedAtAsc(feed.getTransactionFeedId());
+            List<Bids> bids = bidsRepository.findHighestBidWithUser(feed.getTransactionFeedId(), PageRequest.of(0,1));
+            Optional<Bids> highestBid = bids.isEmpty() ? Optional.empty() : Optional.of(bids.get(0));
 
             if (highestBid.isPresent()) {
-                // 낙찰 처리
                 Bids bid = highestBid.get();
-                User buyer = bid.getUser();
                 Long finalBidAmount = bid.getBidAmount();
+                User buyer = bid.getUser();
                 log.info("[AuctionJobConfig] 낙찰자 발견: ID = {}, 금액 = {}", buyer.getUserId(), finalBidAmount);
                 return new AuctionResult(feed, buyer, finalBidAmount, AuctionResult.Type.WINNING);
             } else {
@@ -130,11 +133,13 @@ public class AuctionJobConfig {
     @Bean
     public ItemWriter<AuctionResult> auctionFeedWriter() {
         return chunk -> {
+            EntityManager entityManager = entityManagerFactory.createEntityManager();
             for (AuctionResult result : chunk.getItems()) {
+                TransactionFeed managedFeed = entityManager.merge(result.getTransactionFeed());
                 if (result.getType() == AuctionResult.Type.WINNING) {
-                    auctionBatchService.processWinningBid(result.getTransactionFeed(), result.getBuyer(), result.getFinalBidAmount());
+                    auctionBatchService.processWinningBid(managedFeed, result.getBuyer(), result.getFinalBidAmount());
                 } else if (result.getType() == AuctionResult.Type.FAILED) {
-                    auctionBatchService.processFailedBid(result.getTransactionFeed());
+                    auctionBatchService.processFailedBid(managedFeed);
                 }
             }
         };
