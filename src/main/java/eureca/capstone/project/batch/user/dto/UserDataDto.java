@@ -1,4 +1,4 @@
-package eureca.capstone.project.batch.dto;
+package eureca.capstone.project.batch.user.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
