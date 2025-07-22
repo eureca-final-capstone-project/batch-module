@@ -35,6 +35,7 @@ public class BatchController {
     private final Job transactionStatisticJob;
     private final Job restrictionReleaseJob;
     private final Job expireGeneralSaleFeedJob;
+    private final Job auctionProcessingJob;
 
     // Service for reprocessing
     private final BatchFailureLogService batchFailureLogService;
@@ -111,9 +112,23 @@ public class BatchController {
         }
     }
 
-    /* ==================================
-     * 2. 실패/스킵된 아이템 재처리 API
-     * ================================== */
+    @Operation(summary = "입찰 판매 낙찰 배치 수동 실행", description = "입찰 판매글을 낙찰 처리하는 배치를 수동으로 즉시 실행합니다.")
+    @PostMapping("/run-auction-processing")
+    public String runAuctionProcessingJobManual() {
+        log.info("[runAuctionProcessingJobManual] 경매 처리 배치 수동 실행");
+        try {
+            JobParameters jobParameters = new JobParametersBuilder()
+                    .addLocalDateTime("targetDateTime", LocalDateTime.now())
+                    .addLong("salesTypeId", 2L) // 2L이 입찰판매
+                    .addLong("timestamp", System.currentTimeMillis())
+                    .toJobParameters();
+            jobLauncher.run(auctionProcessingJob, jobParameters);
+            return "경매 처리 배치 수동 실행 완료";
+        } catch (Exception e) {
+            log.error("[runAuctionProcessingJobManual] 경매 처리 배치 수동 실행 실패", e);
+            return "경매 처리 배치 수동 실행 실패: " + e.getMessage();
+        }
+    }
 
     @Operation(summary = "재처리 필요한 실패/스킵 로그 조회", description = "배치 처리 중 스킵되어 '실제로 재처리가 가능한' 항목들의 목록을 조회합니다. 기본적으로 SKIP 타입의 로그만 조회합니다.")
     @GetMapping("/failures")

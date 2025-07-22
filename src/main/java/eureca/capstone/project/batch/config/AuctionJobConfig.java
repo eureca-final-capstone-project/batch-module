@@ -79,16 +79,16 @@ public class AuctionJobConfig {
             @Value("#{jobParameters['salesTypeId']}") Long salesTypeId) {
 
         String jpqlQuery = """
-                SELECT tf FROM TransactionFeed tf
-                JOIN FETCH tf.status
-                JOIN FETCH tf.salesType
-                WHERE tf.salesType.salesTypeId = :salesTypeId
-                AND tf.status.code = 'ON_SALE'
-                AND tf.isDeleted = false
-                AND tf.expiresAt < :targetDateTime
-                """;
+            SELECT tf FROM TransactionFeed tf
+            JOIN FETCH tf.status
+            JOIN FETCH tf.salesType
+            WHERE tf.salesType.salesTypeId = :salesTypeId
+            AND tf.status.code = 'ON_SALE'
+            AND tf.isDeleted = false
+            AND tf.expiresAt < :targetDateTime
+            """;
 
-        return new JpaPagingItemReaderBuilder<TransactionFeed>()
+        JpaPagingItemReader<TransactionFeed> reader = new JpaPagingItemReaderBuilder<TransactionFeed>()
                 .name("auctionFeedReader")
                 .entityManagerFactory(entityManagerFactory)
                 .pageSize(CHUNK_SIZE)
@@ -98,6 +98,11 @@ public class AuctionJobConfig {
                         "targetDateTime", targetDateTime
                 ))
                 .build();
+
+        // 이 reader가 자체적인 트랜잭션을 사용하지 않도록 설정합니다.
+        reader.setTransacted(false);
+
+        return reader;
     }
 
     @Bean
@@ -105,7 +110,7 @@ public class AuctionJobConfig {
         return feed -> {
             log.info("[AuctionJobConfig] 판매글 처리 시작: ID = {}", feed.getTransactionFeedId());
 
-            Optional<Bids> highestBid = bidsRepository.findTopByTransactionFeedIdOrderByBidAmountDescCreatedAtAsc(feed.getTransactionFeedId());
+            Optional<Bids> highestBid = bidsRepository.findTopByTransactionFeed_TransactionFeedIdOrderByBidAmountDescCreatedAtAsc(feed.getTransactionFeedId());
 
             if (highestBid.isPresent()) {
                 // 낙찰 처리

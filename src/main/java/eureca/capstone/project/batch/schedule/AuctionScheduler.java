@@ -19,7 +19,7 @@ public class AuctionScheduler {
     private final JobLauncher jobLauncher;
     private final Job auctionProcessingJob;
 
-    @Scheduled(cron = "0 0 0 * * *") // 매 1분마다 실행
+    @Scheduled(cron = "0 0 0 * * *")
     public void runAuctionProcessingJob() {
         log.info("[AuctionScheduler] 경매 처리 배치 시작");
         try {
