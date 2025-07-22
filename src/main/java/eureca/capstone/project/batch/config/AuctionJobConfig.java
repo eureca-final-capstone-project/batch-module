@@ -1,13 +1,13 @@
 package eureca.capstone.project.batch.config;
 
 import eureca.capstone.project.batch.auction.service.AuctionBatchService;
-import eureca.capstone.project.batch.common.repository.StatusRepository;
+import eureca.capstone.project.batch.component.listener.CustomRetryListener;
+import eureca.capstone.project.batch.component.listener.CustomSkipListener;
+import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
 import eureca.capstone.project.batch.transaction_feed.entity.Bids;
 import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
 import eureca.capstone.project.batch.transaction_feed.repository.BidsRepository;
-import eureca.capstone.project.batch.transaction_feed.repository.SalesTypeRepository;
 import eureca.capstone.project.batch.user.entity.User;
-import eureca.capstone.project.batch.user.repository.UserRepository;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +24,7 @@ import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilde
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.LocalDateTime;
@@ -38,17 +39,18 @@ public class AuctionJobConfig {
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;
     private final EntityManagerFactory entityManagerFactory;
-    private final UserRepository userRepository;
     private final AuctionBatchService auctionBatchService;
-    private final StatusRepository statusRepository;
-    private final SalesTypeRepository salesTypeRepository;
     private final BidsRepository bidsRepository;
+    private final JobCompletionNotificationListener jobCompletionNotificationListener;
+    private final CustomSkipListener customSkipListener;
+    private final CustomRetryListener customRetryListener;
 
     private static final int CHUNK_SIZE = 100;
 
     @Bean
     public Job auctionProcessingJob() {
         return new JobBuilder("auctionProcessingJob", jobRepository)
+                .listener(jobCompletionNotificationListener) // Job 리스너 등록
                 .start(auctionProcessingStep())
                 .build();
     }
@@ -60,6 +62,13 @@ public class AuctionJobConfig {
                 .reader(auctionFeedReader(null, null))
                 .processor(auctionFeedProcessor())
                 .writer(auctionFeedWriter())
+                .faultTolerant()
+                .retryLimit(3)
+                .retry(OptimisticLockingFailureException.class) // 재시도할 예외
+                .skipLimit(10)
+                .skip(RuntimeException.class)
+                .listener(customSkipListener)
+                .listener(customRetryListener)
                 .build();
     }
 
@@ -126,7 +135,6 @@ public class AuctionJobConfig {
         };
     }
 
-    // AuctionResult DTO (내부 클래스로 정의)
     private static class AuctionResult {
         enum Type { WINNING, FAILED }
 

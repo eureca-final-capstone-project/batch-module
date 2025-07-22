@@ -3,14 +3,14 @@ package eureca.capstone.project.batch.pay.entity;
 import eureca.capstone.project.batch.common.entity.BaseEntity;
 import eureca.capstone.project.batch.user.entity.User;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Table(name = "user_pay")
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor
 public class UserPay extends BaseEntity {
 
     @Id
@@ -31,4 +31,5 @@ public class UserPay extends BaseEntity {
     public void charge(Long amount) {
         this.pay += amount;
     }
+
 }
