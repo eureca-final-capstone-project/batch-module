@@ -3,7 +3,7 @@ package eureca.capstone.project.batch.config;
 import eureca.capstone.project.batch.common.entity.Status;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
-import eureca.capstone.project.batch.transaction_feed.domain.UserDataCoupon;
+import eureca.capstone.project.batch.transaction_feed.entity.UserDataCoupon;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

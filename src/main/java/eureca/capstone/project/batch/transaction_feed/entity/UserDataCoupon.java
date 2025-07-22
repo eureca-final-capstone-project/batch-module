@@ -34,4 +34,12 @@ public class UserDataCoupon extends BaseEntity {
     @JoinColumn(name = "status_id")
     @ManyToOne(fetch = FetchType.LAZY)
     private Status status;
+
+    public void changeStatus(Status newStatus) {
+        this.status = newStatus;
+    }
+
+    public Long getStatusId(){
+        return status.getStatusId();
+    }
 }
