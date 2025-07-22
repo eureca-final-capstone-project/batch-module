@@ -4,9 +4,11 @@ import eureca.capstone.project.batch.auction.service.AuctionBatchService;
 import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
 import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
+import eureca.capstone.project.batch.transaction_feed.document.TransactionFeedDocument;
 import eureca.capstone.project.batch.transaction_feed.entity.Bids;
 import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
 import eureca.capstone.project.batch.transaction_feed.repository.BidsRepository;
+import eureca.capstone.project.batch.transaction_feed.repository.TransactionFeedSearchRepository;
 import eureca.capstone.project.batch.user.entity.User;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -47,6 +49,7 @@ public class AuctionJobConfig {
     private final JobCompletionNotificationListener jobCompletionNotificationListener;
     private final CustomSkipListener customSkipListener;
     private final CustomRetryListener customRetryListener;
+    private final TransactionFeedSearchRepository transactionFeedSearchRepository;
 
     private static final int CHUNK_SIZE = 100;
 
@@ -141,6 +144,8 @@ public class AuctionJobConfig {
                 } else if (result.getType() == AuctionResult.Type.FAILED) {
                     auctionBatchService.processFailedBid(managedFeed);
                 }
+
+                transactionFeedSearchRepository.save(TransactionFeedDocument.fromEntity(managedFeed));
             }
         };
     }

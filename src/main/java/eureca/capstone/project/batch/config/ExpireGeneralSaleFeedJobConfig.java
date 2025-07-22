@@ -5,8 +5,10 @@ import eureca.capstone.project.batch.common.repository.StatusRepository;
 import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
 import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
+import eureca.capstone.project.batch.transaction_feed.document.TransactionFeedDocument;
 import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
 import eureca.capstone.project.batch.transaction_feed.repository.TransactionFeedRepository;
+import eureca.capstone.project.batch.transaction_feed.repository.TransactionFeedSearchRepository;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -37,6 +39,8 @@ public class ExpireGeneralSaleFeedJobConfig {
     private final TransactionFeedRepository transactionFeedRepository;
     private final CustomSkipListener customSkipListener;
     private final CustomRetryListener customRetryListener;
+    private final TransactionFeedSearchRepository transactionFeedSearchRepository;
+
     private static final int CHUNK_SIZE = 100;
 
     private final Status expiredStatus;
@@ -46,7 +50,8 @@ public class ExpireGeneralSaleFeedJobConfig {
                                           JobCompletionNotificationListener jobCompletionNotificationListener,
                                           TransactionFeedRepository transactionFeedRepository,
                                           CustomSkipListener customSkipListener,
-                                          CustomRetryListener customRetryListener) {
+                                          CustomRetryListener customRetryListener,
+                                          TransactionFeedSearchRepository transactionFeedSearchRepository) {
         this.entityManagerFactory = entityManagerFactory;
         this.statusRepository = statusRepository;
         this.jobCompletionNotificationListener = jobCompletionNotificationListener;
@@ -54,6 +59,7 @@ public class ExpireGeneralSaleFeedJobConfig {
         this.customSkipListener = customSkipListener;
         this.customRetryListener = customRetryListener;
         this.expiredStatus = statusRepository.findByDomainAndCode("FEED", "EXPIRED").orElseThrow(() -> new IllegalArgumentException("기간만료 상태를 찾을 수 없습니다."));
+        this.transactionFeedSearchRepository = transactionFeedSearchRepository;
     }
 
     @Bean
@@ -124,6 +130,12 @@ public class ExpireGeneralSaleFeedJobConfig {
 
             if (!idsToUpdate.isEmpty()) {
                 transactionFeedRepository.updateStatusForIds(this.expiredStatus, idsToUpdate);
+                // Elasticsearch 동기화
+                List<TransactionFeed> updatedFeeds = transactionFeedRepository.findAllById(idsToUpdate);
+                List<TransactionFeedDocument> documentsToUpdate = updatedFeeds.stream()
+                        .map(TransactionFeedDocument::fromEntity)
+                        .collect(Collectors.toList());
+                transactionFeedSearchRepository.saveAll(documentsToUpdate);
             }
         };
     }
