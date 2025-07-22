@@ -15,10 +15,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SlackServiceImpl implements SlackService {
 
-//    @Value("${slack.bot.token}")
+    @Value("${slack.bot.token}")
     private String slackBotToken;
 
-//    @Value("${slack.channel}")
+    @Value("${slack.channel}")
     private String slackChannel;
 
     private final WebClient webClient;
