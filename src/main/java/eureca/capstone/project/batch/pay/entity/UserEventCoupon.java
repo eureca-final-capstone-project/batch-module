@@ -1,29 +1,26 @@
-package eureca.capstone.project.batch.transaction_feed.domain;
+package eureca.capstone.project.batch.pay.entity;
 
 
 import eureca.capstone.project.batch.common.entity.BaseEntity;
 import eureca.capstone.project.batch.common.entity.Status;
 import eureca.capstone.project.batch.user.entity.User;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
-@Builder
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
-@Table(name = "user_data_coupon")
-public class UserDataCoupon extends BaseEntity {
+@Table(name = "user_event_coupon")
+public class UserEventCoupon extends BaseEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_data_coupon_id")
-    private Long userDataCouponId;
+    private Long userEventCouponId;
 
-    @JoinColumn(name = "data_coupon_id")
+    @JoinColumn(name = "event_coupon_id")
     @ManyToOne(fetch = FetchType.LAZY)
-    private DataCoupon dataCoupon;
+    private EventCoupon eventCoupon;
 
     @JoinColumn(name = "user_id")
     @ManyToOne(fetch = FetchType.LAZY)
