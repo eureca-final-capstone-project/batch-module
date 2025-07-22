@@ -1,0 +1,43 @@
+package eureca.capstone.project.batch.pay.entity;
+
+
+import eureca.capstone.project.batch.common.entity.BaseEntity;
+import eureca.capstone.project.batch.common.entity.Status;
+import eureca.capstone.project.batch.user.entity.User;
+import jakarta.persistence.*;
+import lombok.Getter;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Getter
+@Table(name = "user_event_coupon")
+public class UserEventCoupon extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long userEventCouponId;
+
+    @JoinColumn(name = "event_coupon_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private EventCoupon eventCoupon;
+
+    @JoinColumn(name = "user_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private User user;
+
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
+    @JoinColumn(name = "status_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Status status;
+
+    public void changeStatus(Status newStatus) {
+        this.status = newStatus;
+    }
+
+    public Long getStatusId(){
+        return status.getStatusId();
+    }
+}
