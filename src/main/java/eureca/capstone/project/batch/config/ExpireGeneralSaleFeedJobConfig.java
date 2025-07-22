@@ -5,7 +5,7 @@ import eureca.capstone.project.batch.common.repository.StatusRepository;
 import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
 import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
-import eureca.capstone.project.batch.transaction_feed.domain.TransactionFeed;
+import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
 import eureca.capstone.project.batch.transaction_feed.repository.TransactionFeedRepository;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.batch.core.Job;

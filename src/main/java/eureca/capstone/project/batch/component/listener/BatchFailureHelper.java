@@ -4,7 +4,8 @@ import eureca.capstone.project.batch.auth.entity.UserAuthority;
 import eureca.capstone.project.batch.common.entity.BatchFailureLog;
 import eureca.capstone.project.batch.common.service.BatchFailureLogService;
 import eureca.capstone.project.batch.component.external.DiscordNotificationService;
-import eureca.capstone.project.batch.transaction_feed.domain.TransactionFeed;
+import eureca.capstone.project.batch.config.AuctionJobConfig;
+import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,7 +15,6 @@ import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.SkipListener;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.scope.context.StepSynchronizationManager;
-import org.springframework.retry.RetryContext;
 import org.springframework.retry.RetryListener;
 import org.springframework.stereotype.Component;
 
@@ -53,6 +53,10 @@ public class BatchFailureHelper implements SkipListener<Object, Object>, RetryLi
         if (item == null) return "N/A";
 
         try {
+            if (item instanceof AuctionJobConfig.AuctionResult auctionResult) {
+                TransactionFeed feed = auctionResult.getTransactionFeed();
+                return (feed != null) ? String.valueOf(feed.getTransactionFeedId()) : "N/A";
+            }
             if (item instanceof UserAuthority userAuthority) {
                 return String.valueOf(userAuthority.getUserAuthorityId());
             }
