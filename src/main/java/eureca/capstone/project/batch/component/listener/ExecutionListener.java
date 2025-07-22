@@ -1,4 +1,4 @@
-package eureca.capstone.project.batch.component.listener;
+package eureca.capstone.project.batch.component;
 
 import eureca.capstone.project.batch.component.external.DiscordNotificationService;
 import eureca.capstone.project.batch.slack.dto.SlackMessageRequestDto;
