@@ -1,6 +1,6 @@
 package eureca.capstone.project.batch.config;
 
-import eureca.capstone.project.batch.component.listener.ExecutionListener;
+import eureca.capstone.project.batch.component.ExecutionListener;
 import eureca.capstone.project.batch.component.processor.UserDataProcessor;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.user.entity.UserData;

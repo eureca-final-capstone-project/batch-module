@@ -1,5 +1,4 @@
-package eureca.capstone.project.batch.transaction_feed.domain;
-
+package eureca.capstone.project.batch.transaction_feed.entity;
 
 import eureca.capstone.project.batch.common.entity.BaseEntity;
 import eureca.capstone.project.batch.common.entity.Status;
@@ -35,12 +34,4 @@ public class UserDataCoupon extends BaseEntity {
     @JoinColumn(name = "status_id")
     @ManyToOne(fetch = FetchType.LAZY)
     private Status status;
-
-    public void changeStatus(Status newStatus) {
-        this.status = newStatus;
-    }
-
-    public Long getStatusId(){
-        return status.getStatusId();
-    }
 }

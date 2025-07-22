@@ -1,4 +1,4 @@
-package eureca.capstone.project.batch.transaction_feed.domain;
+package eureca.capstone.project.batch.transaction_feed.entity;
 
 import eureca.capstone.project.batch.common.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -19,7 +19,7 @@ import lombok.Setter;
 public class SalesType extends BaseEntity {
     @Column(name = "sales_type_id")
     @Id
-    private Long SalesTypeId;
+    private Long salesTypeId;
 
     private String name;
 
@@ -28,11 +28,11 @@ public class SalesType extends BaseEntity {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         SalesType salesType = (SalesType) o;
-        return Objects.equals(SalesTypeId, salesType.SalesTypeId) && Objects.equals(name, salesType.name);
+        return Objects.equals(salesTypeId, salesType.salesTypeId) && Objects.equals(name, salesType.name);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(SalesTypeId, name);
+        return Objects.hash(salesTypeId, name);
     }
 }

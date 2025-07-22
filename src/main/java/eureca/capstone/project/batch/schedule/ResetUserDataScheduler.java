@@ -18,7 +18,7 @@ public class ResetUserDataScheduler {
     private final JobLauncher jobLauncher;
     private final Job resetUserDataJob;
 
-    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "10 0 0 * * *", zone = "Asia/Seoul")
     public void runResetDataBatch() {
         try {
             log.info("[runResetDataBatch] 사용자 데이터 초기화 배치 실행");

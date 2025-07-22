@@ -1,14 +1,20 @@
-package eureca.capstone.project.batch.transaction_feed.domain;
-
+package eureca.capstone.project.batch.transaction_feed.entity;
 
 import eureca.capstone.project.batch.common.entity.BaseEntity;
 import eureca.capstone.project.batch.user.entity.User;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
-@Table
 @Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Table(name = "data_transaction_history")
 public class DataTransactionHistory extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
