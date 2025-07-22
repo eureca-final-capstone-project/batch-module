@@ -1,12 +1,9 @@
 package eureca.capstone.project.batch.config;
 
 import eureca.capstone.project.batch.common.entity.Status;
-import eureca.capstone.project.batch.common.repository.StatusRepository;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
-import eureca.capstone.project.batch.component.processor.UserDataProcessor;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.transaction_feed.domain.UserDataCoupon;
-import eureca.capstone.project.batch.user.entity.UserData;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +25,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +40,6 @@ public class ExpireDataCouponJobConfig {
     private final DataSource dataSource;
     private final ExecutionListener executionListener;
     private final RetryPolicy retryPolicy;
-    private final StatusRepository statusRepository;
 
     @Bean
     public Job expireDataCouponJob(Step expireDataCouponStep) {
@@ -73,7 +68,7 @@ public class ExpireDataCouponJobConfig {
     @StepScope
     public JpaPagingItemReader<UserDataCoupon> expireDataCouponReader(
             @Value("#{jobParameters['currentTime']}") String currentTime,
-            @Qualifier("couponStatuses") Map<String, Status> statusMap) {
+            @Qualifier("getStatuses") Map<String, Status> statusMap) {
         LocalDateTime today = LocalDateTime.parse(currentTime);
         Status expiredStatus = statusMap.get("EXPIRED");
         Status usedStatus = statusMap.get("USED");
@@ -97,11 +92,11 @@ public class ExpireDataCouponJobConfig {
 
     @Bean
     public ItemProcessor<UserDataCoupon, UserDataCoupon> expireDataCouponProcessor(
-            @Qualifier("couponStatuses") Map<String, Status> statusMap) {
+            @Qualifier("getStatuses") Map<String, Status> statusMap) {
             Status expiredStatus = statusMap.get("EXPIRED");
 
             return coupon ->{
-                coupon.updateStatus(expiredStatus);
+                coupon.changeStatus(expiredStatus);
                 return coupon;
             };
     }
@@ -117,17 +112,5 @@ public class ExpireDataCouponJobConfig {
                 .build();
     }
 
-    @Bean
-    public Map<String, Status> couponStatuses() {
-        Status expired = statusRepository.findByDomainAndCode("COUPON", "EXPIRED")
-                .orElseThrow(() -> new RuntimeException("EXPIRED status not found"));
-        log.info("EXPIRED status");
-        Status used = statusRepository.findByDomainAndCode("COUPON", "USED")
-                .orElseThrow(() -> new RuntimeException("USED status not found"));
-        log.info("Used status");
-        Map<String, Status> map = new HashMap<>();
-        map.put("EXPIRED", expired);
-        map.put("USED", used);
-        return map;
-    }
+
 }
