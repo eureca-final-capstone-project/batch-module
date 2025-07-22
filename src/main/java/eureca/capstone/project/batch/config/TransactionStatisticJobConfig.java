@@ -1,6 +1,7 @@
 package eureca.capstone.project.batch.config;
 
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
+import eureca.capstone.project.batch.component.tasklet.TransactionStatisticSaveTasklet;
 import eureca.capstone.project.batch.component.writer.TransactionStatisticWriter;
 import eureca.capstone.project.batch.transaction_feed.domain.DataTransactionHistory;
 import jakarta.persistence.EntityManagerFactory;
@@ -10,6 +11,7 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.listener.ExecutionContextPromotionListener;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.database.JpaPagingItemReader;
@@ -41,17 +43,19 @@ public class TransactionStatisticJobConfig {
     private final DataSource dataSource;
     private final ExecutionListener executionListener;
     private final TransactionStatisticWriter transactionStatisticWriter;
+    private final TransactionStatisticSaveTasklet transactionStatisticSaveTasklet;
 
     @Bean
     public Job transactionStatisticJob() {
         return new JobBuilder("transactionStatisticJob", jobRepository)
-                .start(transactionStatisticStep())
+                .start(transactionStatisticCalculateStep()) // 거래내역 조회 및 누적 집계
+                .next(transactionStatisticSaveStep())       // 통계 계산 및 저장
                 .build();
     }
 
     @Bean
-    public Step transactionStatisticStep() {
-        return new StepBuilder("transactionStatisticJob", jobRepository)
+    public Step transactionStatisticCalculateStep() {
+        return new StepBuilder("transactionStatisticCalculateStep", jobRepository)
                 .<DataTransactionHistory, DataTransactionHistory>chunk(100, platformTransactionManager)
                 .reader(transactionHistoryJpaReader(null))
                 .writer(transactionStatisticWriter)
@@ -59,7 +63,22 @@ public class TransactionStatisticJobConfig {
                 .retryPolicy(retryPolicyStatistic())
                 .backOffPolicy(fixedBackOffPolicyStatistic())
                 .listener(executionListener)
+                .listener(promotionListener())
                 .build();
+    }
+
+    @Bean
+    public Step transactionStatisticSaveStep() {
+        return new StepBuilder("transactionStatisticSaveStep", jobRepository)
+                .tasklet(transactionStatisticSaveTasklet, platformTransactionManager)
+                .build();
+    }
+
+    @Bean
+    public ExecutionContextPromotionListener promotionListener() {
+        ExecutionContextPromotionListener listener = new ExecutionContextPromotionListener();
+        listener.setKeys(new String[] {TransactionStatisticWriter.STEP_STATISTIC_KEY});
+        return listener;
     }
 
     @Bean
