@@ -23,10 +23,10 @@ public class MarketStatistic extends BaseEntity {
     private Long statisticsId;
 
     @Column(name = "average_price")
-    private long averagePrice;
+    private Long averagePrice;
 
     @Column(name = "transaction_amount")
-    private long transactionAmount;
+    private Long transactionAmount;
 
     @Column(name = "statics_time")
     private LocalDateTime staticsTime;
