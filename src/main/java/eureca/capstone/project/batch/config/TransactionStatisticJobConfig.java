@@ -1,8 +1,8 @@
 package eureca.capstone.project.batch.config;
 
-import eureca.capstone.project.batch.component.listener.UserDataListener;
-import eureca.capstone.project.batch.component.UserDataProcessor;
-import eureca.capstone.project.batch.user.entity.UserData;
+import eureca.capstone.project.batch.component.listener.ExecutionListener;
+import eureca.capstone.project.batch.component.writer.TransactionStatisticWriter;
+import eureca.capstone.project.batch.transaction_feed.domain.DataTransactionHistory;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,9 +12,7 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
-import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -27,7 +25,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import javax.sql.DataSource;
 import java.io.IOException;
 import java.sql.SQLRecoverableException;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -35,55 +33,62 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-public class BatchConfig {
+public class TransactionStatisticJobConfig {
 
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
     private final EntityManagerFactory entityManagerFactory;
-    private final UserDataProcessor userDataProcessor;
     private final DataSource dataSource;
-    private final UserDataListener userDataListener;
+    private final ExecutionListener executionListener;
+    private final TransactionStatisticWriter transactionStatisticWriter;
 
     @Bean
-    public Job resetUserDataJob() {
-        return new JobBuilder("resetUserDataJob", jobRepository)
-                .start(resetUserDataStep())
+    public Job transactionStatisticJob() {
+        return new JobBuilder("transactionStatisticJob", jobRepository)
+                .start(transactionStatisticStep())
                 .build();
     }
 
     @Bean
-    public Step resetUserDataStep() {
-        return new StepBuilder("resetUserDataStep", jobRepository)
-                .<UserData, UserData>chunk(100, platformTransactionManager)
-                .reader(userDataJpaReader(null))
-                .processor(userDataProcessor)
-                .writer(userDataWriter())
+    public Step transactionStatisticStep() {
+        return new StepBuilder("transactionStatisticJob", jobRepository)
+                .<DataTransactionHistory, DataTransactionHistory>chunk(100, platformTransactionManager)
+                .reader(transactionHistoryJpaReader(null))
+                .writer(transactionStatisticWriter)
                 .faultTolerant()
-                .retryPolicy(retryPolicy())
-                .backOffPolicy(fixedBackOffPolicy())
-                .listener(userDataListener)
+                .retryPolicy(retryPolicyStatistic())
+                .backOffPolicy(fixedBackOffPolicyStatistic())
+                .listener(executionListener)
                 .build();
     }
 
     @Bean
     @StepScope
-    public JpaPagingItemReader<UserData> userDataJpaReader(
-            @Value("#{jobParameters['currentDate']}") String currentDate) {
-        LocalDate date = LocalDate.parse(currentDate);
-        Integer today = date.getDayOfMonth()-2;
-        Integer lastDay = date.lengthOfMonth();
+    public JpaPagingItemReader<DataTransactionHistory> transactionHistoryJpaReader(
+            @Value("#{jobParameters['currentTime']}") String currentDate) {
+        LocalDateTime currentTime = LocalDateTime.parse(currentDate);
+        LocalDateTime startTime = currentTime
+                .minusHours(1)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0);
+        LocalDateTime endTime = currentTime
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0);
+
         Map<String, Object> params = new HashMap<>();
-        params.put("today", today);
+        params.put("start", startTime);
+        params.put("end", endTime);
 
-        String query;
-        if(today.equals(lastDay)) {
-            query = "select ud from UserData ud join fetch ud.plan where ud.resetDataAt >= :today";
-        } else{
-            query = "select ud from UserData ud join fetch ud.plan where ud.resetDataAt = :today";
-        }
 
-        return new JpaPagingItemReaderBuilder<UserData>()
-                .name("userJpaReader")
+        String query = "select th from DataTransactionHistory th " +
+                "join fetch th.transactionFeed tf " +
+                "join fetch tf.telecomCompany tc " +
+                "where th.createdAt >= :start and th.createdAt < :end";
+
+        return new JpaPagingItemReaderBuilder<DataTransactionHistory>()
+                .name("transactionHistoryJpaReader")
                 .entityManagerFactory(entityManagerFactory)
                 .queryString(query)
                 .parameterValues(params)
@@ -92,17 +97,7 @@ public class BatchConfig {
     }
 
     @Bean
-    public ItemWriter<UserData> userDataWriter() {
-        return new JdbcBatchItemWriterBuilder<UserData>()
-                .dataSource(dataSource)
-                .sql("update user_data set sellable_data_mb = :sellableDataMb, total_data_mb =:totalDataMb where user_data_id = :userDataId")
-                .beanMapped()
-                .assertUpdates(false)
-                .build();
-    }
-
-    @Bean
-    public SimpleRetryPolicy retryPolicy(){
+    public SimpleRetryPolicy retryPolicyStatistic(){
         Map<Class<? extends Throwable>, Boolean> retryableExceptions = new HashMap<>();
         retryableExceptions.put(IOException.class, true);
         retryableExceptions.put(TimeoutException.class, true);
@@ -113,11 +108,9 @@ public class BatchConfig {
     }
 
     @Bean
-    public FixedBackOffPolicy fixedBackOffPolicy(){
+    public FixedBackOffPolicy fixedBackOffPolicyStatistic(){
         FixedBackOffPolicy fixedBackOffPolicy = new FixedBackOffPolicy();
         fixedBackOffPolicy.setBackOffPeriod(2000);
         return fixedBackOffPolicy;
     }
-
-
 }

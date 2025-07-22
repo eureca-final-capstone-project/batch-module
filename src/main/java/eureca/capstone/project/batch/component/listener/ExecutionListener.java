@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class UserDataListener implements StepExecutionListener, JobExecutionListener {
+public class ExecutionListener implements StepExecutionListener, JobExecutionListener {
 
     private final SlackService slackService;
     private final DiscordNotificationService discordNotificationService;
@@ -94,7 +94,6 @@ public class UserDataListener implements StepExecutionListener, JobExecutionList
         } else{
             log.info("배치 성공. Job: {}, Step: {}, Read: {}, Write: {}", stepExecution.getJobExecution().getJobInstance().getJobName(),
                     stepExecution.getStepName(), readCount, writeCount);
-
             // Discord 성공 알림 전송
             String discordTitle = String.format("✅ BATCH-STEP-SUCCESS : %s", jobName);
             String discordDescription = String.format(
@@ -112,8 +111,7 @@ public class UserDataListener implements StepExecutionListener, JobExecutionList
                     stepExecution.getExitStatus().getExitCode()
             );
             discordNotificationService.sendMessage(discordTitle, discordDescription, Color.BLUE);
-
-            String msg = String.format("UserData 초기화 완료 - 총 read: %d, write: %d", readCount, writeCount);
+            String msg = String.format("[%s] Batch 작업 완료 - 총 read: %d, write: %d", stepExecution.getJobExecution().getJobInstance().getJobName(), readCount, writeCount);
             return new ExitStatus(ExitStatus.COMPLETED.getExitCode(), msg);
         }
     }
