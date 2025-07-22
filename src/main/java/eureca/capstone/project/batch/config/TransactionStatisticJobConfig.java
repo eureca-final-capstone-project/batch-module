@@ -1,6 +1,7 @@
 package eureca.capstone.project.batch.config;
 
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
+import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.component.tasklet.TransactionStatisticSaveTasklet;
 import eureca.capstone.project.batch.component.writer.TransactionStatisticWriter;
 import eureca.capstone.project.batch.transaction_feed.domain.DataTransactionHistory;
@@ -40,7 +41,7 @@ public class TransactionStatisticJobConfig {
     private final JobRepository jobRepository;
     private final PlatformTransactionManager platformTransactionManager;
     private final EntityManagerFactory entityManagerFactory;
-    private final DataSource dataSource;
+    private final RetryPolicy retryPolicy;
     private final ExecutionListener executionListener;
     private final TransactionStatisticWriter transactionStatisticWriter;
     private final TransactionStatisticSaveTasklet transactionStatisticSaveTasklet;
@@ -60,8 +61,8 @@ public class TransactionStatisticJobConfig {
                 .reader(transactionHistoryJpaReader(null))
                 .writer(transactionStatisticWriter)
                 .faultTolerant()
-                .retryPolicy(retryPolicyStatistic())
-                .backOffPolicy(fixedBackOffPolicyStatistic())
+                .retryPolicy(retryPolicy.createRetryPolicy())
+                .backOffPolicy(retryPolicy.createBackoffPolicy())
                 .listener(executionListener)
                 .listener(promotionListener())
                 .build();

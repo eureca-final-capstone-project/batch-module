@@ -62,7 +62,7 @@ public class BatchController {
         }
     }
 
-    @Operation(summary = "거래량/시세 통계 배치 수동 실행", description = "매 시간마다 이전시간의 거래량과 통신사별 시세 통계를 내리는 배치를 수동으로 즉시 실행합니다.")
+    @Operation(summary = "거래량/시세 통계 배치 수동 실행", description = "매 시간마다 이전시간의 거래량과 통신사별 시세 통계를 내리는 배치를 수동으로 즉시 실행합니다.(거래내역 없을 경우 시세: null, 거래량: 0 으로 저장)")
     @PostMapping("/statistic-transaction")
     public String runStatisticBatchManual() {
         try {
