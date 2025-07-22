@@ -35,6 +35,7 @@ public class BatchController {
     private final Job transactionStatisticJob;
     private final Job restrictionReleaseJob;
     private final Job expireGeneralSaleFeedJob;
+    private final Job expireDataCouponJob;
 
     // Service for reprocessing
     private final BatchFailureLogService batchFailureLogService;
@@ -108,6 +109,24 @@ public class BatchController {
         } catch (Exception e) {
             log.error("[runExpireGeneralSaleFeedJobManual] 게시글 기간만료 배치 수동 실행 실패", e);
             return "게시글 기간만료 배치 수동 실행 실패: " + e.getMessage();
+        }
+    }
+
+
+    @Operation(summary = "데이터 충전권 기간만료 배치 수동 실행", description = "기간이 만료된 데이터 충전권을 기간만료 상태로 변경하는 배치를 수동으로 즉시 실행합니다.")
+    @PostMapping("/expire-data-coupon")
+    public String runExpireDataCouponBatchManual() {
+        try {
+            log.info("[runExpireDataCouponBatchManual] 데이터 충전권 기간만료 배치 수동 실행");
+            jobLauncher.run(expireDataCouponJob, new JobParametersBuilder()
+                    .addLong("time", System.currentTimeMillis())
+                    .addString("currentTime", LocalDateTime.now().toString())
+                    .toJobParameters());
+            log.info("[runExpireDataCouponBatchManual] 데이터 충전권 기간만료 배치 수동 실행 완료");
+            return "데이터 충전권 기간만료 배치 수동 실행 완료";
+        } catch (Exception e) {
+            log.error("[runExpireDataCouponBatchManual] 데이터 충전권 기간만료 배치 수동 실행 실패", e);
+            return "데이터 충전권 기간만료 배치 수동 실행 실패: " + e.getMessage();
         }
     }
 
