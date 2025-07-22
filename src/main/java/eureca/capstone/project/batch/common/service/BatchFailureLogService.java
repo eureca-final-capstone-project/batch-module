@@ -5,7 +5,7 @@ import eureca.capstone.project.batch.auth.repository.UserAuthorityRepository;
 import eureca.capstone.project.batch.common.entity.BatchFailureLog;
 import eureca.capstone.project.batch.common.repository.BatchFailureLogRepository;
 import eureca.capstone.project.batch.common.repository.StatusRepository;
-import eureca.capstone.project.batch.transaction_feed.domain.TransactionFeed;
+import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
 import eureca.capstone.project.batch.transaction_feed.repository.TransactionFeedRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

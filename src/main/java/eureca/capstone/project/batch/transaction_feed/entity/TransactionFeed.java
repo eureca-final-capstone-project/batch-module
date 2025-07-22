@@ -1,4 +1,4 @@
-package eureca.capstone.project.batch.transaction_feed.domain;
+package eureca.capstone.project.batch.transaction_feed.entity;
 
 import eureca.capstone.project.batch.common.entity.BaseEntity;
 import eureca.capstone.project.batch.common.entity.Status;

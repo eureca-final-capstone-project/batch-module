@@ -2,7 +2,7 @@ package eureca.capstone.project.batch.config;
 
 import eureca.capstone.project.batch.component.ExecutionListener;
 import eureca.capstone.project.batch.component.writer.TransactionStatisticWriter;
-import eureca.capstone.project.batch.transaction_feed.domain.DataTransactionHistory;
+import eureca.capstone.project.batch.transaction_feed.entity.DataTransactionHistory;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
