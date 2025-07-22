@@ -145,7 +145,8 @@ public class AuctionJobConfig {
         };
     }
 
-    private static class AuctionResult {
+
+    public static class AuctionResult {
         enum Type { WINNING, FAILED }
 
         private final TransactionFeed transactionFeed;
