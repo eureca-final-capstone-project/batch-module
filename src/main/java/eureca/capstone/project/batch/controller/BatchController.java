@@ -184,6 +184,20 @@ public class BatchController {
         return "실패한 Job이 없음.";
     }
 
+    @Operation(summary = "단일 실패/스킵 항목 재처리", description = "특정 실패 로그 ID를 사용하여 해당 항목을 재처리합니다.")
+    @PostMapping("/failures/{failureLogId}/reprocess")
+    public ResponseEntity<String> reprocessSingleFailure(
+            @Parameter(name = "failureLogId", description = "재처리할 실패 로그의 ID", required = true, example = "5")
+            @PathVariable Long failureLogId) {
+        try {
+            batchFailureLogService.reprocessFailedItem(failureLogId);
+            return ResponseEntity.ok(String.format("실패 로그 ID %d 항목 재처리 성공", failureLogId));
+        } catch (Exception e) {
+            log.error("실패 로그 ID {} 항목 재처리 실패: {}", failureLogId, e.getMessage());
+            return ResponseEntity.internalServerError().body("재처리 실패: " + e.getMessage());
+        }
+    }
+
     @Operation(summary = "특정 Job의 실패한 실행(Execution) 목록 조회", description = "Job 이름을 기준으로, 상태가 'FAILED'인 Job 실행(Execution) 기록 목록을 조회합니다.")
     @GetMapping("/{jobName}/executions/failed")
     public ResponseEntity<List<Map<String, Object>>> getFailedExecutions(

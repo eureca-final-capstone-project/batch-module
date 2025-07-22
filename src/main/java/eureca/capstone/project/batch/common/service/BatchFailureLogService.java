@@ -5,8 +5,14 @@ import eureca.capstone.project.batch.auth.repository.UserAuthorityRepository;
 import eureca.capstone.project.batch.common.entity.BatchFailureLog;
 import eureca.capstone.project.batch.common.repository.BatchFailureLogRepository;
 import eureca.capstone.project.batch.common.repository.StatusRepository;
+import eureca.capstone.project.batch.transaction_feed.entity.Bids;
+import eureca.capstone.project.batch.auction.service.AuctionBatchService;
 import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
+import eureca.capstone.project.batch.transaction_feed.repository.BidsRepository;
 import eureca.capstone.project.batch.transaction_feed.repository.TransactionFeedRepository;
+
+import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Slf4j
@@ -28,6 +35,8 @@ public class BatchFailureLogService {
     private final UserAuthorityRepository userAuthorityRepository;
     private final TransactionFeedRepository transactionFeedRepository;
     private final StatusRepository statusRepository;
+    private final AuctionBatchService auctionBatchService;
+    private final BidsRepository bidsRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveFailureLog(BatchFailureLog failureLog) {
@@ -62,6 +71,9 @@ public class BatchFailureLogService {
                     break;
                 case "expireGeneralSaleFeedJob":
                     reprocessTransactionFeedItem(failureLog);
+                    break;
+                case "auctionProcessingJob":
+                    reprocessAuctionItem(failureLog);
                     break;
                 default:
                     throw new RuntimeException("지원하지 않는 Job 타입: " + failureLog.getJobName());
@@ -118,24 +130,24 @@ public class BatchFailureLogService {
         }
     }
 
-    @Transactional
-    public void reprocessMultipleItems(List<Long> failureLogIds) {
-        List<String> successIds = new ArrayList<>();
-        List<String> failedIds = new ArrayList<>();
-
-        for (Long id : failureLogIds) {
-            try {
-                reprocessFailedItem(id);
-                successIds.add(id.toString());
-            } catch (Exception e) {
-                failedIds.add(id + ": " + e.getMessage());
-                log.error("배치 재처리 실패: ID={}, Error={}", id, e.getMessage());
-            }
+    private void reprocessAuctionItem(BatchFailureLog failureLog) {
+        String itemId = failureLog.getFailedItemId();
+        if("N/A".equals(itemId)){
+            throw new RuntimeException("재처리할 항목 ID가 없습니다.");
         }
+        Long transactionFeedId = Long.valueOf(itemId);
+        TransactionFeed transactionFeed = transactionFeedRepository.findById(transactionFeedId)
+                .orElseThrow(() -> new RuntimeException("TransactionFeed를 찾을 수 없습니다: " + transactionFeedId));
 
-        log.info("배치 재처리 완료 - 성공: {}, 실패: {}", successIds.size(), failedIds.size());
-        if (!failedIds.isEmpty()) {
-            throw new RuntimeException("일부 항목 재처리 실패: " + String.join(", ", failedIds));
+        Optional<Bids> highestBid = bidsRepository.findTopByTransactionFeed_TransactionFeedIdOrderByBidAmountDescCreatedAtAsc(transactionFeed.getTransactionFeedId());
+
+        if(highestBid.isPresent()){
+            Bids bid = highestBid.get();
+            auctionBatchService.processWinningBid(transactionFeed, bid.getUser(), bid.getBidAmount());
+            log.info("경매 판매글 낙찰 재처리 완료: TransactionFeedId={}", transactionFeedId);
+        }else{
+            auctionBatchService.processFailedBid(transactionFeed);
+            log.info("경매 판매글 유찰 재처리 완료: TransactionFeedId={}", transactionFeedId);
         }
     }
 }
