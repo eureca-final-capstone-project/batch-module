@@ -1,6 +1,6 @@
 package eureca.capstone.project.batch.common.service;
 
-import eureca.capstone.project.batch.common.dto.AlarmCreationDto;
+import eureca.capstone.project.batch.alarm.dto.AlarmCreationDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NotificationProducerService {
+public class NotificationProducer {
     private static final String TOPIC = "notification";
     private final KafkaTemplate<String, AlarmCreationDto> kafkaTemplate;
 
