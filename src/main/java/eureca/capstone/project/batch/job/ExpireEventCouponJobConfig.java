@@ -1,8 +1,8 @@
 package eureca.capstone.project.batch.job;
 
 import eureca.capstone.project.batch.alarm.dto.AlarmCreationDto;
+import eureca.capstone.project.batch.alarm.service.NotificationService;
 import eureca.capstone.project.batch.common.entity.Status;
-import eureca.capstone.project.batch.common.service.NotificationProducer;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.pay.entity.UserEventCoupon;
@@ -46,7 +46,6 @@ public class ExpireEventCouponJobConfig {
     private final DataSource dataSource;
     private final ExecutionListener executionListener;
     private final RetryPolicy retryPolicy;
-    private final NotificationProducer notificationProducer;
 
     @Bean
     public Job expireEventCouponJob(Step expireEventCouponStep) {
@@ -123,7 +122,7 @@ public class ExpireEventCouponJobConfig {
 
     @Bean
     public ItemWriteListener<UserEventCoupon> expireEventCouponNotifyListener(
-            NotificationProducer notificationProducer) {
+            NotificationService notificationService) {
 
         return new ItemWriteListener<>() {
 
@@ -134,19 +133,18 @@ public class ExpireEventCouponJobConfig {
             public void afterWrite(Chunk<? extends UserEventCoupon> chunk) {
                 if (chunk == null || chunk.isEmpty()) return;
 
-                List<AlarmCreationDto> dtos = chunk.getItems().stream()
-                        .map(c -> AlarmCreationDto.builder()
-                                .userId(c.getUser().getUserId())
-                                .alarmType("쿠폰 만료")
-                                .content("이벤트 쿠폰 \"" + c.getEventCoupon().getCouponName() + "\"이(가) 만료되었습니다.")
-                                .build())
-                        .toList();
-
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
-                        dtos.forEach(notificationProducer::send);
-                        log.info("[expireEventCouponNotifyListener] {}건 알림 전송 완료", dtos.size());
+                        chunk.getItems().forEach(c -> {
+                            notificationService.sendNotification(
+                                    c.getUser().getUserId(),
+                                    "쿠폰 만료",
+                                    "이벤트 쿠폰 \"" + c.getEventCoupon().getCouponName() + "\"이(가) 만료되었습니다."
+                            );
+                        });
+
+                        log.info("[expireEventCouponNotifyListener] {}건 알림 전송 완료", chunk.getItems().size());
                     }
                 });
             }

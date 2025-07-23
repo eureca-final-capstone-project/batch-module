@@ -120,22 +120,4 @@ public class TransactionStatisticJobConfig {
                 .pageSize(100)
                 .build();
     }
-
-    @Bean
-    public SimpleRetryPolicy retryPolicyStatistic(){
-        Map<Class<? extends Throwable>, Boolean> retryableExceptions = new HashMap<>();
-        retryableExceptions.put(IOException.class, true);
-        retryableExceptions.put(TimeoutException.class, true);
-        retryableExceptions.put(SQLRecoverableException.class, true);
-        retryableExceptions.put(TransientDataAccessException.class, true);
-
-        return new SimpleRetryPolicy(3, retryableExceptions);
-    }
-
-    @Bean
-    public FixedBackOffPolicy fixedBackOffPolicyStatistic(){
-        FixedBackOffPolicy fixedBackOffPolicy = new FixedBackOffPolicy();
-        fixedBackOffPolicy.setBackOffPeriod(2000);
-        return fixedBackOffPolicy;
-    }
 }
