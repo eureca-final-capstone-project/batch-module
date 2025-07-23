@@ -1,12 +1,7 @@
 package eureca.capstone.project.batch.component.writer;
 
 import eureca.capstone.project.batch.common.entity.TelecomCompany;
-import eureca.capstone.project.batch.common.repository.TelecomCompanyRepository;
-import eureca.capstone.project.batch.dto.StatisticResponseDto;
-import eureca.capstone.project.batch.market_statistic.domain.MarketStatistic;
-import eureca.capstone.project.batch.market_statistic.domain.TransactionAmountStatistic;
-import eureca.capstone.project.batch.market_statistic.repository.MarketStatisticRepository;
-import eureca.capstone.project.batch.market_statistic.repository.TransactionAmountStatisticRepository;
+import eureca.capstone.project.batch.market_statistic.dto.StatisticResponseDto;
 import eureca.capstone.project.batch.transaction_feed.entity.DataTransactionHistory;
 import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
 import lombok.RequiredArgsConstructor;
@@ -17,14 +12,9 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.io.Serializable;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Component
