@@ -17,13 +17,13 @@ import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+
 @Component
 @StepScope
 @RequiredArgsConstructor
@@ -44,9 +44,7 @@ public class TransactionStatisticSaveTasklet implements Tasklet {
 
         LocalDateTime statisticsTime = LocalDateTime.parse(currentTimeStr)
                 .minusHours(1)
-                .withMinute(0)
-                .withSecond(0)
-                .withNano(0);
+                .truncatedTo(ChronoUnit.HOURS);
 
         Map<Long, StatisticResponseDto> statistics =
                 (Map<Long, StatisticResponseDto>) executionContext.get(TransactionStatisticWriter.STEP_STATISTIC_KEY);
@@ -57,7 +55,7 @@ public class TransactionStatisticSaveTasklet implements Tasklet {
         }
 
 
-        // 3) 전체 통신사 조회 후 각각 저장 (없으면 0)
+        // 전체 통신사 조회 후 각각 저장
         List<TelecomCompany> telecoms = telecomCompanyRepository.findAll();
 
         if (telecoms.isEmpty()) {
@@ -65,9 +63,14 @@ public class TransactionStatisticSaveTasklet implements Tasklet {
         }
 
         List<MarketStatistic> marketStats = new ArrayList<>();
+        Set<Long> existsIds = marketStatisticRepository.findTelecomIdsByStaticsTime(statisticsTime);
         long totalCount = 0L;
 
         for (TelecomCompany telecom : telecoms) {
+            if (existsIds.contains(telecom.getTelecomCompanyId())) {
+                log.warn("[SaveTasklet] 이미 존재하는 통계데이터. {}", telecom.getName());
+                continue;
+            }
             StatisticResponseDto dto = statistics.getOrDefault(
                     telecom.getTelecomCompanyId(),
                     StatisticResponseDto.builder()
@@ -88,17 +91,27 @@ public class TransactionStatisticSaveTasklet implements Tasklet {
             totalCount += dto.getTransactionCount();
         }
 
-        // 시세 통계 저장
-        marketStatisticRepository.saveAll(marketStats);
+        try {
+            // 시세 통계 저장
+            if (!marketStats.isEmpty()) {
+                marketStatisticRepository.saveAll(marketStats);
+            }
 
-        // 거래량 통계 저장
-        transactionAmountStatisticRepository.save(TransactionAmountStatistic.builder()
-                .transactionAmount(totalCount)
-                .staticsTime(statisticsTime)
-                .build());
+            // 거래량 통계 저장
+            if (!transactionAmountStatisticRepository.existsByStaticsTime(statisticsTime)) {
+                transactionAmountStatisticRepository.save(TransactionAmountStatistic.builder()
+                        .transactionAmount(totalCount)
+                        .staticsTime(statisticsTime)
+                        .build());
+            }
 
+        } catch (DataIntegrityViolationException e) {
+            log.warn("[SaveTasklet] 중복 통계 데이터 발생. time={}, {}", statisticsTime, e.getMessage());
+        } catch (Exception e) {
+            log.error("[SaveTasklet] 통계 데이터 DB 저장 중 예상치 못한 오류 발생. time={}. {}", statisticsTime, e.getMessage(), e);
+            throw e;
+        }
         log.info("[SaveTasklet] 저장 완료. time={}, marketStats={}, totalCnt={}", statisticsTime, marketStats.size(), totalCount);
-
         return RepeatStatus.FINISHED;
     }
 }
