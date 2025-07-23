@@ -2,9 +2,13 @@ package eureca.capstone.project.batch.job;
 
 import eureca.capstone.project.batch.auth.entity.UserAuthority;
 import eureca.capstone.project.batch.auth.repository.UserAuthorityRepository;
+import eureca.capstone.project.batch.common.entity.Status;
+import eureca.capstone.project.batch.common.util.StatusManager;
 import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
 import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
+import eureca.capstone.project.batch.restriction.entity.RestrictionTarget;
+import eureca.capstone.project.batch.restriction.repository.RestrictionTargetRepository;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +41,8 @@ public class RestrictionReleaseJobConfig {
     private final PlatformTransactionManager transactionManager;
     private final EntityManagerFactory entityManagerFactory;
     private final UserAuthorityRepository userAuthorityRepository;
+    private final RestrictionTargetRepository restrictionTargetRepository;
+    private final StatusManager statusManager;
     private final JobCompletionNotificationListener jobCompletionNotificationListener;
     private final CustomSkipListener customSkipListener;
     private final CustomRetryListener customRetryListener;
@@ -47,8 +53,68 @@ public class RestrictionReleaseJobConfig {
     public Job restrictionReleaseJob() {
         return new JobBuilder("restrictionReleaseJob", jobRepository)
                 .listener(jobCompletionNotificationListener)
-                .start(restrictionReleaseStep())
+                .start(restrictionTargetExpirationStep())
+                .next(restrictionReleaseStep())
                 .build();
+    }
+
+    @Bean
+    public Step restrictionTargetExpirationStep() {
+        return new StepBuilder("restrictionTargetExpirationStep", jobRepository)
+                .<RestrictionTarget, RestrictionTarget>chunk(CHUNK_SIZE, transactionManager)
+                .reader(restrictionTargetExpirationReader(null))
+                .processor(restrictionTargetExpirationProcessor())
+                .writer(restrictionTargetExpirationWriter())
+                .faultTolerant()
+                .retryLimit(3)
+                .retry(DataIntegrityViolationException.class)
+                .skipLimit(10)
+                .skip(NullPointerException.class)
+                .listener(customSkipListener)
+                .listener(customRetryListener)
+                .build();
+    }
+
+    @Bean
+    @StepScope
+    public JpaPagingItemReader<RestrictionTarget> restrictionTargetExpirationReader(
+            @Value("#{jobParameters['now']}") LocalDateTime now) {
+        String jpql = """
+                SELECT rt FROM RestrictionTarget rt
+                JOIN FETCH rt.user u
+                JOIN FETCH rt.status s
+                WHERE rt.expiresAt < :now AND s.code = 'COMPLETED'
+                """;
+
+        return new JpaPagingItemReaderBuilder<RestrictionTarget>()
+                .name("restrictionTargetExpirationReader")
+                .entityManagerFactory(entityManagerFactory)
+                .pageSize(CHUNK_SIZE)
+                .queryString(jpql)
+                .parameterValues(Map.of("now", now))
+                .build();
+    }
+
+    @Bean
+    public ItemProcessor<RestrictionTarget, RestrictionTarget> restrictionTargetExpirationProcessor() {
+        return restrictionTarget -> {
+            log.info("제재 만료 처리할 RestrictionTarget: ID = {}, User ID = {}, ExpiresAt = {}",
+                    restrictionTarget.getRestrictionTargetId(),
+                    restrictionTarget.getUser().getUserId(),
+                    restrictionTarget.getExpiresAt());
+            return restrictionTarget;
+        };
+    }
+
+    @Bean
+    public ItemWriter<RestrictionTarget> restrictionTargetExpirationWriter() {
+        return chunk -> {
+            Status expiredStatus = statusManager.getStatus("RESTRICTION", "RESTRICT_EXPIRATION");
+            List<Long> restrictionTargetIds = chunk.getItems().stream()
+                    .map(RestrictionTarget::getRestrictionTargetId)
+                    .toList();
+            restrictionTargetRepository.bulkUpdateStatusForIds(restrictionTargetIds, expiredStatus);
+        };
     }
 
     @Bean
