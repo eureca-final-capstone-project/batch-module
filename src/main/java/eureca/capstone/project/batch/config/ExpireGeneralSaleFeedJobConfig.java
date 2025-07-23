@@ -1,5 +1,6 @@
 package eureca.capstone.project.batch.config;
 
+import eureca.capstone.project.batch.alarm.service.NotificationService;
 import eureca.capstone.project.batch.common.entity.Status;
 import eureca.capstone.project.batch.common.repository.StatusRepository;
 import eureca.capstone.project.batch.component.listener.CustomRetryListener;
@@ -40,6 +41,7 @@ public class ExpireGeneralSaleFeedJobConfig {
     private final CustomSkipListener customSkipListener;
     private final CustomRetryListener customRetryListener;
     private final TransactionFeedSearchRepository transactionFeedSearchRepository;
+    private final NotificationService notificationService;
 
     private static final int CHUNK_SIZE = 100;
 
@@ -51,7 +53,8 @@ public class ExpireGeneralSaleFeedJobConfig {
                                           TransactionFeedRepository transactionFeedRepository,
                                           CustomSkipListener customSkipListener,
                                           CustomRetryListener customRetryListener,
-                                          TransactionFeedSearchRepository transactionFeedSearchRepository) {
+                                          TransactionFeedSearchRepository transactionFeedSearchRepository,
+                                          NotificationService notificationService) {
         this.entityManagerFactory = entityManagerFactory;
         this.statusRepository = statusRepository;
         this.jobCompletionNotificationListener = jobCompletionNotificationListener;
@@ -60,6 +63,7 @@ public class ExpireGeneralSaleFeedJobConfig {
         this.customRetryListener = customRetryListener;
         this.expiredStatus = statusRepository.findByDomainAndCode("FEED", "EXPIRED").orElseThrow(() -> new IllegalArgumentException("기간만료 상태를 찾을 수 없습니다."));
         this.transactionFeedSearchRepository = transactionFeedSearchRepository;
+        this.notificationService = notificationService;
     }
 
     @Bean
@@ -130,12 +134,21 @@ public class ExpireGeneralSaleFeedJobConfig {
 
             if (!idsToUpdate.isEmpty()) {
                 transactionFeedRepository.updateStatusForIds(this.expiredStatus, idsToUpdate);
-                // Elasticsearch 동기화
                 List<TransactionFeed> updatedFeeds = transactionFeedRepository.findAllById(idsToUpdate);
                 List<TransactionFeedDocument> documentsToUpdate = updatedFeeds.stream()
                         .map(TransactionFeedDocument::fromEntity)
                         .collect(Collectors.toList());
                 transactionFeedSearchRepository.saveAll(documentsToUpdate);
+
+                updatedFeeds.forEach(feed -> {
+                    if (feed.getUser() != null) {
+                        notificationService.sendNotification(
+                                feed.getUser().getUserId(),
+                                "게시글 만료",
+                                String.format("[%s] 게시글이 만료되었습니다.", feed.getTitle())
+                        );
+                    }
+                });
             }
         };
     }
