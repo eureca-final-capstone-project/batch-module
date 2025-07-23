@@ -1,18 +1,22 @@
 package eureca.capstone.project.batch.config;
 
+import eureca.capstone.project.batch.common.dto.AlarmCreationDto;
 import eureca.capstone.project.batch.common.entity.Status;
+import eureca.capstone.project.batch.common.service.NotificationProducerService;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.transaction_feed.entity.UserDataCoupon;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.ItemWriteListener;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
@@ -23,7 +27,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import javax.management.NotificationListener;
 import javax.sql.DataSource;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -40,6 +47,7 @@ public class ExpireDataCouponJobConfig {
     private final DataSource dataSource;
     private final ExecutionListener executionListener;
     private final RetryPolicy retryPolicy;
+    private final NotificationProducerService notificationProducer;
 
     @Bean
     public Job expireDataCouponJob(Step expireDataCouponStep) {
@@ -51,7 +59,8 @@ public class ExpireDataCouponJobConfig {
     @Bean
     public Step expireDataCouponStep(
             JpaPagingItemReader<UserDataCoupon> expireDataCouponReader,
-            ItemProcessor<UserDataCoupon, UserDataCoupon> expireDataCouponProcessor) {
+            ItemProcessor<UserDataCoupon, UserDataCoupon> expireDataCouponProcessor,
+            ItemWriteListener<UserDataCoupon> expireDataCouponNotifyListener) {
         return new StepBuilder("expireDataCouponStep", jobRepository)
                 .<UserDataCoupon, UserDataCoupon>chunk(100, platformTransactionManager)
                 .reader(expireDataCouponReader)
@@ -61,6 +70,7 @@ public class ExpireDataCouponJobConfig {
                 .retryPolicy(retryPolicy.createRetryPolicy())
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
                 .listener(executionListener)
+                .listener(expireDataCouponNotifyListener)
                 .build();
     }
 
@@ -112,5 +122,41 @@ public class ExpireDataCouponJobConfig {
                 .build();
     }
 
+    @Bean
+    public ItemWriteListener<UserDataCoupon> expireDataCouponNotifyListener(
+            NotificationProducerService notificationProducer) {
 
+        return new ItemWriteListener<>() {
+
+            @Override
+            public void beforeWrite(Chunk<? extends UserDataCoupon> chunk) { }
+
+            @Override
+            public void afterWrite(Chunk<? extends UserDataCoupon> chunk) {
+                if (chunk == null || chunk.isEmpty()) return;
+
+                List<AlarmCreationDto> dtos = chunk.getItems().stream()
+                        .map(c -> AlarmCreationDto.builder()
+                                .userId(c.getUser().getUserId())
+                                .alarmType("쿠폰 만료")
+                                .content("데이터 쿠폰 \"" + c.getDataCoupon().getCouponNumber() + "\"이 만료되었습니다.")
+                                .build())
+                        .toList();
+
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        dtos.forEach(notificationProducer::send);
+                        log.info("[expireDataCouponNotifyListener] {}건 알림 전송 완료", dtos.size());
+                    }
+                });
+            }
+
+            @Override
+            public void onWriteError(Exception ex, Chunk<? extends UserDataCoupon> chunk) {
+                log.error("[expireDataCouponNotifyListener] error 발생. size={}",
+                        chunk == null ? 0 : chunk.size(), ex);
+            }
+        };
+    }
 }
