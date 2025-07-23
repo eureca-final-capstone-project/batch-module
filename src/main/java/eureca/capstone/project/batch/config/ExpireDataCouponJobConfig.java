@@ -1,8 +1,9 @@
 package eureca.capstone.project.batch.config;
 
-import eureca.capstone.project.batch.common.dto.AlarmCreationDto;
+
+import eureca.capstone.project.batch.alarm.dto.AlarmCreationDto;
 import eureca.capstone.project.batch.common.entity.Status;
-import eureca.capstone.project.batch.common.service.NotificationProducerService;
+import eureca.capstone.project.batch.common.service.NotificationProducer;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.transaction_feed.entity.UserDataCoupon;
@@ -30,7 +31,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import javax.management.NotificationListener;
 import javax.sql.DataSource;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -47,7 +47,7 @@ public class ExpireDataCouponJobConfig {
     private final DataSource dataSource;
     private final ExecutionListener executionListener;
     private final RetryPolicy retryPolicy;
-    private final NotificationProducerService notificationProducer;
+    private final NotificationProducer notificationProducer;
 
     @Bean
     public Job expireDataCouponJob(Step expireDataCouponStep) {
@@ -124,7 +124,7 @@ public class ExpireDataCouponJobConfig {
 
     @Bean
     public ItemWriteListener<UserDataCoupon> expireDataCouponNotifyListener(
-            NotificationProducerService notificationProducer) {
+            NotificationProducer notificationProducer) {
 
         return new ItemWriteListener<>() {
 

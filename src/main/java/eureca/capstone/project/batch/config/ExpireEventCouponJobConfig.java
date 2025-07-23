@@ -1,12 +1,11 @@
 package eureca.capstone.project.batch.config;
 
-import eureca.capstone.project.batch.common.dto.AlarmCreationDto;
+import eureca.capstone.project.batch.alarm.dto.AlarmCreationDto;
 import eureca.capstone.project.batch.common.entity.Status;
-import eureca.capstone.project.batch.common.service.NotificationProducerService;
+import eureca.capstone.project.batch.common.service.NotificationProducer;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.pay.entity.UserEventCoupon;
-import eureca.capstone.project.batch.transaction_feed.entity.UserDataCoupon;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +46,7 @@ public class ExpireEventCouponJobConfig {
     private final DataSource dataSource;
     private final ExecutionListener executionListener;
     private final RetryPolicy retryPolicy;
+    private final NotificationProducer notificationProducer;
 
     @Bean
     public Job expireEventCouponJob(Step expireEventCouponStep) {
@@ -123,7 +123,7 @@ public class ExpireEventCouponJobConfig {
 
     @Bean
     public ItemWriteListener<UserEventCoupon> expireEventCouponNotifyListener(
-            NotificationProducerService notificationProducer) {
+            NotificationProducer notificationProducer) {
 
         return new ItemWriteListener<>() {
 
