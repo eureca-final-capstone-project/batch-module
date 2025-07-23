@@ -1,18 +1,23 @@
 package eureca.capstone.project.batch.config;
 
+import eureca.capstone.project.batch.common.dto.AlarmCreationDto;
 import eureca.capstone.project.batch.common.entity.Status;
+import eureca.capstone.project.batch.common.service.NotificationProducerService;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.pay.entity.UserEventCoupon;
+import eureca.capstone.project.batch.transaction_feed.entity.UserDataCoupon;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.ItemWriteListener;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JpaPagingItemReader;
@@ -23,6 +28,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import javax.sql.DataSource;
 import java.time.LocalDateTime;
@@ -51,8 +58,9 @@ public class ExpireEventCouponJobConfig {
     @Bean
     public Step expireEventCouponStep(
             JpaPagingItemReader<UserEventCoupon> expireEventCouponReader,
-            ItemProcessor<UserEventCoupon, UserEventCoupon> expireEventCouponProcessor) {
-        return new StepBuilder("expireDataCouponStep", jobRepository)
+            ItemProcessor<UserEventCoupon, UserEventCoupon> expireEventCouponProcessor,
+            ItemWriteListener<UserEventCoupon> expireEventCouponNotifyListener) {
+        return new StepBuilder("expireEventCouponStep", jobRepository)
                 .<UserEventCoupon, UserEventCoupon>chunk(100, platformTransactionManager)
                 .reader(expireEventCouponReader)
                 .processor(expireEventCouponProcessor)
@@ -61,6 +69,7 @@ public class ExpireEventCouponJobConfig {
                 .retryPolicy(retryPolicy.createRetryPolicy())
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
                 .listener(executionListener)
+                .listener(expireEventCouponNotifyListener)
                 .build();
     }
 
@@ -110,5 +119,43 @@ public class ExpireEventCouponJobConfig {
                 .beanMapped()
                 .assertUpdates(false)
                 .build();
+    }
+
+    @Bean
+    public ItemWriteListener<UserEventCoupon> expireEventCouponNotifyListener(
+            NotificationProducerService notificationProducer) {
+
+        return new ItemWriteListener<>() {
+
+            @Override
+            public void beforeWrite(Chunk<? extends UserEventCoupon> chunk) { }
+
+            @Override
+            public void afterWrite(Chunk<? extends UserEventCoupon> chunk) {
+                if (chunk == null || chunk.isEmpty()) return;
+
+                List<AlarmCreationDto> dtos = chunk.getItems().stream()
+                        .map(c -> AlarmCreationDto.builder()
+                                .userId(c.getUser().getUserId())
+                                .alarmType("쿠폰 만료")
+                                .content("이벤트 쿠폰 \"" + c.getEventCoupon().getCouponName() + "\"이(가) 만료되었습니다.")
+                                .build())
+                        .toList();
+
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        dtos.forEach(notificationProducer::send);
+                        log.info("[expireEventCouponNotifyListener] {}건 알림 전송 완료", dtos.size());
+                    }
+                });
+            }
+
+            @Override
+            public void onWriteError(Exception ex, Chunk<? extends UserEventCoupon> chunk) {
+                log.error("[expireEventCouponNotifyListener] error 발생. size={}",
+                        chunk == null ? 0 : chunk.size(), ex);
+            }
+        };
     }
 }
