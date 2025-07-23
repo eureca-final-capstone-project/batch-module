@@ -1,6 +1,6 @@
 package eureca.capstone.project.batch.component.listener;
 
-import eureca.capstone.project.batch.component.external.DiscordNotificationService;
+import eureca.capstone.project.batch.component.external.discord.DiscordNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;

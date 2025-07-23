@@ -3,7 +3,7 @@ package eureca.capstone.project.batch.component.tasklet;
 import eureca.capstone.project.batch.common.entity.TelecomCompany;
 import eureca.capstone.project.batch.common.repository.TelecomCompanyRepository;
 import eureca.capstone.project.batch.component.writer.TransactionStatisticWriter;
-import eureca.capstone.project.batch.dto.StatisticResponseDto;
+import eureca.capstone.project.batch.market_statistic.dto.StatisticResponseDto;
 import eureca.capstone.project.batch.market_statistic.domain.MarketStatistic;
 import eureca.capstone.project.batch.market_statistic.domain.TransactionAmountStatistic;
 import eureca.capstone.project.batch.market_statistic.repository.MarketStatisticRepository;
