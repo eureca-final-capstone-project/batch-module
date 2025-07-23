@@ -20,12 +20,12 @@ import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilde
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import javax.sql.DataSource;
 import java.io.IOException;
 import java.sql.SQLRecoverableException;
 import java.time.LocalDateTime;
@@ -61,6 +61,8 @@ public class TransactionStatisticJobConfig {
                 .reader(transactionHistoryJpaReader(null))
                 .writer(transactionStatisticWriter)
                 .faultTolerant()
+                .skip(DataIntegrityViolationException.class)
+                .skipLimit(3)
                 .retryPolicy(retryPolicy.createRetryPolicy())
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
                 .listener(executionListener)
