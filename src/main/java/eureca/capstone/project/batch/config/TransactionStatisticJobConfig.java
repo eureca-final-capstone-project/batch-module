@@ -100,12 +100,15 @@ public class TransactionStatisticJobConfig {
         Map<String, Object> params = new HashMap<>();
         params.put("start", startTime);
         params.put("end", endTime);
+        params.put("typeId", 1);
+
 
 
         String query = "select th from DataTransactionHistory th " +
                 "join fetch th.transactionFeed tf " +
                 "join fetch tf.telecomCompany tc " +
-                "where th.createdAt >= :start and th.createdAt < :end";
+                "join fetch tf.salesType st " +
+                "where th.createdAt >= :start and th.createdAt < :end and st.salesTypeId = :typeId";
 
         return new JpaPagingItemReaderBuilder<DataTransactionHistory>()
                 .name("transactionHistoryJpaReader")
