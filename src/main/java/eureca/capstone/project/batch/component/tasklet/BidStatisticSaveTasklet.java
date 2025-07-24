@@ -37,8 +37,8 @@ public class BidStatisticSaveTasklet implements Tasklet {
                 .getJobExecution().getExecutionContext();
 
         LocalDateTime statisticsTime = LocalDateTime.parse(currentTimeStr)
-                .minusHours(1)
-                .truncatedTo(ChronoUnit.HOURS);
+                .minusDays(1)
+                .truncatedTo(ChronoUnit.DAYS);
 
         Long totalVolumeCount = executionContext.getLong(BidVolumeStatisticWriter.VOLUME_STATISTIC_KEY, 0L);
         log.info("[NormalStatisticSaveTasklet] volume 총합 읽기: {}", totalVolumeCount);
