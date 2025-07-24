@@ -49,7 +49,7 @@ public class TransactionStatisticJobConfig {
     @Bean
     public Job normalStatisticJob() {
         return new JobBuilder("normalStatisticJob", jobRepository)
-                .start(normalStatisticCalculateStep()) // 시세 통계 조회 및 누적 집계
+                .start(normalStatisticCalculateStep()) // 시세 통계, 거래량 조회 및 누적 집계
                 .next(normalStatisticSaveStep())       // 통계 계산 및 저장
                 .build();
     }
@@ -58,7 +58,7 @@ public class TransactionStatisticJobConfig {
     @Bean
     public Job bidStatisticJob() {
         return new JobBuilder("bidStatisticJob", jobRepository)
-                .start(bidStatisticCalculateStep()) // 시세 통계 조회 및 누적 집계
+                .start(bidStatisticCalculateStep()) // 거래량 조회 및 누적 집계
                 .next(bidStatisticSaveStep())       // 통계 계산 및 저장
                 .build();
     }

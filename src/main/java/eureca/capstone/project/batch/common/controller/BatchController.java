@@ -32,7 +32,8 @@ public class BatchController {
 
     // Job Beans
     private final Job resetUserDataJob;
-    private final Job transactionStatisticJob;
+    private final Job normalStatisticJob;
+    private final Job bidStatisticJob;
     private final Job restrictionReleaseJob;
     private final Job expireGeneralSaleFeedJob;
     private final Job auctionProcessingJob;
@@ -59,20 +60,37 @@ public class BatchController {
         }
     }
 
-    @Operation(summary = "거래량/시세 통계 배치 수동 실행", description = "매 시간마다 이전시간의 거래량과 통신사별 시세 통계를 내리는 배치를 수동으로 즉시 실행합니다.(거래내역 없을 경우 시세: null, 거래량: 0 으로 저장)")
-    @PostMapping("/statistic-transaction")
-    public String runStatisticBatchManual() {
+    @Operation(summary = "일반판매 거래량/시세 통계 배치 수동 실행", description = "매 시간마다 이전시간의 일반판매 거래량과 통신사별 시세 통계를 내리는 배치를 수동으로 즉시 실행합니다.(거래내역 없을 경우 시세: null, 거래량: 0 으로 저장)")
+    @PostMapping("/statistic-normal-transaction")
+    public String runNormalBatchManual() {
         try {
-            log.info("[runStatisticBatchManual] 거래량/시세 통계 배치 수동 실행");
-            jobLauncher.run(transactionStatisticJob, new JobParametersBuilder()
+            log.info("[runNormalBatchManual] 일반판매 거래량/시세 통계 배치 실행");
+            jobLauncher.run(normalStatisticJob, new JobParametersBuilder()
                     .addLong("time", System.currentTimeMillis())
                     .addString("currentTime", LocalDateTime.now().toString())
                     .toJobParameters());
-            log.info("[runStatisticBatchManual] 거래량/시세 통계 배치 수동 실행 완료");
-            return "거래량/시세 통계 배치 수동 실행 완료";
+            log.info("[runNormalBatchManual] 일반판매 거래량/시세 통계 배치 실행 완료");
+            return "일반판매 거래량/시세 통계 배치 수동 실행 완료";
         } catch (Exception e) {
-            log.error("[runStatisticBatchManual] 거래량/시세 통계 배치 수동 실행 실패", e);
-            return "거래량/시세 통계 배치 수동 실행 실패: " + e.getMessage();
+            log.error("[runNormalBatchManual] 일반판매 거래량/시세 통계 배치 실행 실패", e);
+            return "일반판매 거래량/시세 통계 배치 수동 실행 실패: " + e.getMessage();
+        }
+    }
+
+    @Operation(summary = "입찰판매 거래량 통계 배치 수동 실행", description = "매일 자정에 전날의 입찰판매 거래량 통계를 내리는 배치를 수동으로 즉시 실행합니다.(거래내역 없을 경우 거래량: 0 으로 저장)")
+    @PostMapping("/statistic-bid-transaction")
+    public String runBidBatchManual() {
+        try {
+            log.info("[runBidBatchManual] 입찰판매 거래량 통계 배치 실행");
+            jobLauncher.run(bidStatisticJob, new JobParametersBuilder()
+                    .addLong("time", System.currentTimeMillis())
+                    .addString("currentTime", LocalDateTime.now().toString())
+                    .toJobParameters());
+            log.info("[runBidBatchManual] 입찰판매 거래량 통계 배치 실행 완료");
+            return "입찰판매 거래량 통계 배치 실행 완료";
+        } catch (Exception e) {
+            log.error("[runBidBatchManual] 입찰판매 거래량 통계 배치 실행 실패", e);
+            return "입찰판매 거래량 통계 배치 실행 실패: " + e.getMessage();
         }
     }
 
