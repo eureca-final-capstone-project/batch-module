@@ -2,8 +2,10 @@ package eureca.capstone.project.batch.job;
 
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
-import eureca.capstone.project.batch.component.tasklet.TransactionStatisticSaveTasklet;
-import eureca.capstone.project.batch.component.writer.TransactionStatisticWriter;
+import eureca.capstone.project.batch.component.tasklet.BidStatisticSaveTasklet;
+import eureca.capstone.project.batch.component.tasklet.NormalStatisticSaveTasklet;
+import eureca.capstone.project.batch.component.writer.NormalStatisticWriter;
+import eureca.capstone.project.batch.component.writer.BidVolumeStatisticWriter;
 import eureca.capstone.project.batch.transaction_feed.entity.DataTransactionHistory;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
@@ -21,17 +23,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.TransientDataAccessException;
-import org.springframework.retry.backoff.FixedBackOffPolicy;
-import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.io.IOException;
-import java.sql.SQLRecoverableException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Configuration
@@ -43,23 +40,36 @@ public class TransactionStatisticJobConfig {
     private final EntityManagerFactory entityManagerFactory;
     private final RetryPolicy retryPolicy;
     private final ExecutionListener executionListener;
-    private final TransactionStatisticWriter transactionStatisticWriter;
-    private final TransactionStatisticSaveTasklet transactionStatisticSaveTasklet;
+    private final NormalStatisticWriter normalStatisticWriter;
+    private final BidVolumeStatisticWriter bidVolumeStatisticWriter;
+    private final NormalStatisticSaveTasklet normalStatisticSaveTasklet;
+    private final BidStatisticSaveTasklet bidStatisticSaveTasklet;
 
+    // 일반판매 거래량 + 시세 통계 JOB
     @Bean
-    public Job transactionStatisticJob() {
-        return new JobBuilder("transactionStatisticJob", jobRepository)
-                .start(transactionStatisticCalculateStep()) // 거래내역 조회 및 누적 집계
-                .next(transactionStatisticSaveStep())       // 통계 계산 및 저장
+    public Job normalStatisticJob() {
+        return new JobBuilder("normalStatisticJob", jobRepository)
+                .start(normalStatisticCalculateStep()) // 시세 통계 조회 및 누적 집계
+                .next(normalStatisticSaveStep())       // 통계 계산 및 저장
                 .build();
     }
 
+    // 입찰판매 거래량 통계 JOB
     @Bean
-    public Step transactionStatisticCalculateStep() {
-        return new StepBuilder("transactionStatisticCalculateStep", jobRepository)
+    public Job bidStatisticJob() {
+        return new JobBuilder("bidStatisticJob", jobRepository)
+                .start(bidStatisticCalculateStep()) // 시세 통계 조회 및 누적 집계
+                .next(bidStatisticSaveStep())       // 통계 계산 및 저장
+                .build();
+    }
+
+    // 시세통계 + 일반판매 거래량 집계 STEP [normalStatisticJob]
+    @Bean
+    public Step normalStatisticCalculateStep() {
+        return new StepBuilder("normalStatisticCalculateStep", jobRepository)
                 .<DataTransactionHistory, DataTransactionHistory>chunk(100, platformTransactionManager)
                 .reader(transactionHistoryJpaReader(null))
-                .writer(transactionStatisticWriter)
+                .writer(normalStatisticWriter)
                 .faultTolerant()
                 .skip(DataIntegrityViolationException.class)
                 .skipLimit(3)
@@ -70,41 +80,55 @@ public class TransactionStatisticJobConfig {
                 .build();
     }
 
+    // 시세통계 + 일반판매 거래량 저장 STEP [normalStatisticJob]
     @Bean
-    public Step transactionStatisticSaveStep() {
-        return new StepBuilder("transactionStatisticSaveStep", jobRepository)
-                .tasklet(transactionStatisticSaveTasklet, platformTransactionManager)
+    public Step normalStatisticSaveStep() {
+        return new StepBuilder("normalStatisticSaveStep", jobRepository)
+                .tasklet(normalStatisticSaveTasklet, platformTransactionManager)
                 .build();
     }
 
+    // 입찰판매 거래량 집계 STEP [bidStatisticJob]
     @Bean
-    public ExecutionContextPromotionListener promotionListener() {
-        ExecutionContextPromotionListener listener = new ExecutionContextPromotionListener();
-        listener.setKeys(new String[] {TransactionStatisticWriter.STEP_STATISTIC_KEY});
-        return listener;
+    public Step bidStatisticCalculateStep() {
+        return new StepBuilder("bidStatisticCalculateStep", jobRepository)
+                .<DataTransactionHistory, DataTransactionHistory>chunk(100, platformTransactionManager)
+                .reader(volumeJpaReader(null))
+                .writer(bidVolumeStatisticWriter)
+                .listener(promotionListener())
+                .build();
     }
 
+    // 입찰판매 거래량 저장 STEP [bidStatisticJob]
+    @Bean
+    public Step bidStatisticSaveStep() {
+        return new StepBuilder("bidStatisticSaveStep", jobRepository)
+                .tasklet(bidStatisticSaveTasklet, platformTransactionManager)
+                .build();
+    }
+
+
+    // 시세통계 + 일반판매 거래량 READER [normalStatisticJob]
     @Bean
     @StepScope
     public JpaPagingItemReader<DataTransactionHistory> transactionHistoryJpaReader(
             @Value("#{jobParameters['currentTime']}") String currentDate) {
         LocalDateTime currentTime = LocalDateTime.parse(currentDate);
-        LocalDateTime startTime = currentTime
+        LocalDateTime from = currentTime
                 .minusHours(1)
                 .withMinute(0)
                 .withSecond(0)
                 .withNano(0);
-        LocalDateTime endTime = currentTime
+        LocalDateTime to = currentTime
                 .withMinute(0)
                 .withSecond(0)
                 .withNano(0);
 
-        Map<String, Object> params = new HashMap<>();
-        params.put("start", startTime);
-        params.put("end", endTime);
-        params.put("typeId", 1);
-
-
+        Map<String,Object> params = Map.of(
+                "start", from,
+                "end",   to,
+                "typeId", 1
+        );
 
         String query = "select th from DataTransactionHistory th " +
                 "join fetch th.transactionFeed tf " +
@@ -119,5 +143,46 @@ public class TransactionStatisticJobConfig {
                 .parameterValues(params)
                 .pageSize(100)
                 .build();
+    }
+
+    // 입찰판매 거래량 READER [bidStatisticJob]
+    @Bean
+    @StepScope
+    public JpaPagingItemReader<DataTransactionHistory> volumeJpaReader(
+            @Value("#{jobParameters['currentTime']}") String currentTime) {
+
+        LocalDate today = LocalDateTime.parse(currentTime).toLocalDate();
+        LocalDateTime from  = today.atStartOfDay();
+        LocalDateTime to = from.plusDays(1);
+
+        log.info("{} ~ {}", from, to);
+        Map<String,Object> params = Map.of(
+                "start", from,
+                "end",   to,
+                "typeId", 2
+        );
+
+        String query = "select th from DataTransactionHistory th " +
+                "join fetch th.transactionFeed tf " +
+                "join fetch tf.salesType st " +
+                "where th.createdAt >= :start and th.createdAt < :end and st.salesTypeId = :typeId";
+
+        return new JpaPagingItemReaderBuilder<DataTransactionHistory>()
+                .name("volumeJpaReader")
+                .entityManagerFactory(entityManagerFactory)
+                .queryString(query)
+                .parameterValues(params)
+                .pageSize(100)
+                .build();
+    }
+
+    @Bean
+    public ExecutionContextPromotionListener promotionListener() {
+        ExecutionContextPromotionListener listener = new ExecutionContextPromotionListener();
+        listener.setKeys(new String[] {
+                NormalStatisticWriter.NORMAL_STATISTIC_KEY,
+                BidVolumeStatisticWriter.VOLUME_STATISTIC_KEY
+        });
+        return listener;
     }
 }
