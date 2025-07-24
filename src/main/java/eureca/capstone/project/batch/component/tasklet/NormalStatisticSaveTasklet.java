@@ -2,12 +2,14 @@ package eureca.capstone.project.batch.component.tasklet;
 
 import eureca.capstone.project.batch.common.entity.TelecomCompany;
 import eureca.capstone.project.batch.common.repository.TelecomCompanyRepository;
-import eureca.capstone.project.batch.component.writer.TransactionStatisticWriter;
+import eureca.capstone.project.batch.component.writer.NormalStatisticWriter;
 import eureca.capstone.project.batch.market_statistic.dto.StatisticResponseDto;
 import eureca.capstone.project.batch.market_statistic.domain.MarketStatistic;
 import eureca.capstone.project.batch.market_statistic.domain.TransactionAmountStatistic;
 import eureca.capstone.project.batch.market_statistic.repository.MarketStatisticRepository;
 import eureca.capstone.project.batch.market_statistic.repository.TransactionAmountStatisticRepository;
+import eureca.capstone.project.batch.transaction_feed.entity.SalesType;
+import eureca.capstone.project.batch.transaction_feed.repository.SalesTypeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.StepContribution;
@@ -28,11 +30,12 @@ import java.util.*;
 @StepScope
 @RequiredArgsConstructor
 @Slf4j
-public class TransactionStatisticSaveTasklet implements Tasklet {
+public class NormalStatisticSaveTasklet implements Tasklet {
     private static final int PRICE_PER_MB = 100; // 100MB 단위
     private final TelecomCompanyRepository telecomCompanyRepository;
     private final MarketStatisticRepository marketStatisticRepository;
     private final TransactionAmountStatisticRepository transactionAmountStatisticRepository;
+    private final SalesTypeRepository salesTypeRepository;
 
     @Value("#{jobParameters['currentTime']}")
     private String currentTimeStr;
@@ -47,7 +50,7 @@ public class TransactionStatisticSaveTasklet implements Tasklet {
                 .truncatedTo(ChronoUnit.HOURS);
 
         Map<Long, StatisticResponseDto> statistics =
-                (Map<Long, StatisticResponseDto>) executionContext.get(TransactionStatisticWriter.STEP_STATISTIC_KEY);
+                (Map<Long, StatisticResponseDto>) executionContext.get(NormalStatisticWriter.NORMAL_STATISTIC_KEY);
 
         if (statistics == null) {
             statistics = new HashMap<>();
@@ -65,6 +68,9 @@ public class TransactionStatisticSaveTasklet implements Tasklet {
         List<MarketStatistic> marketStats = new ArrayList<>();
         Set<Long> existsIds = marketStatisticRepository.findTelecomIdsByStaticsTime(statisticsTime);
         long totalCount = 0L;
+        SalesType salesType = salesTypeRepository.findByName("일반 판매")
+                .orElseThrow(()->new IllegalArgumentException("SalesType Not Found"));
+        String statisticType = "HOUR";
 
         for (TelecomCompany telecom : telecoms) {
             if (existsIds.contains(telecom.getTelecomCompanyId())) {
@@ -98,11 +104,14 @@ public class TransactionStatisticSaveTasklet implements Tasklet {
             }
 
             // 거래량 통계 저장
-            if (!transactionAmountStatisticRepository.existsByStaticsTime(statisticsTime)) {
+            if (!transactionAmountStatisticRepository.existsByStaticsTimeAndSalesType(statisticsTime, salesType)) {
                 transactionAmountStatisticRepository.save(TransactionAmountStatistic.builder()
                         .transactionAmount(totalCount)
                         .staticsTime(statisticsTime)
+                        .salesType(salesType)
+                        .statisticType(statisticType)
                         .build());
+                log.info("[SaveTasklet] 저장 완료. time={}, marketStats={}, totalCnt={}, salesType={}", statisticsTime, marketStats.size(), totalCount, salesType.getName());
             }
 
         } catch (DataIntegrityViolationException e) {
@@ -111,7 +120,7 @@ public class TransactionStatisticSaveTasklet implements Tasklet {
             log.error("[SaveTasklet] 통계 데이터 DB 저장 중 예상치 못한 오류 발생. time={}. {}", statisticsTime, e.getMessage(), e);
             throw e;
         }
-        log.info("[SaveTasklet] 저장 완료. time={}, marketStats={}, totalCnt={}", statisticsTime, marketStats.size(), totalCount);
+
         return RepeatStatus.FINISHED;
     }
 }

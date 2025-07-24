@@ -21,8 +21,8 @@ import java.util.Map;
 @StepScope
 @RequiredArgsConstructor
 @Slf4j
-public class TransactionStatisticWriter implements ItemWriter<DataTransactionHistory> {
-    public static final String STEP_STATISTIC_KEY = "telecomStatistic";
+public class NormalStatisticWriter implements ItemWriter<DataTransactionHistory> {
+    public static final String NORMAL_STATISTIC_KEY = "telecomStatistic";
     private StepExecution stepExecution;
     private Map<Long, StatisticResponseDto> statistics; // (통신사 id,계산)
 
@@ -31,14 +31,14 @@ public class TransactionStatisticWriter implements ItemWriter<DataTransactionHis
         this.stepExecution = stepExecution;
         ExecutionContext executionContext = stepExecution.getExecutionContext();
 
-        this.statistics = (Map<Long, StatisticResponseDto>) executionContext.get(STEP_STATISTIC_KEY);
+        this.statistics = (Map<Long, StatisticResponseDto>) executionContext.get(NORMAL_STATISTIC_KEY);
 
         if (this.statistics == null) {
             this.statistics = new HashMap<>();
-            executionContext.put(STEP_STATISTIC_KEY, this.statistics);
-            log.info("[saveStepExecution] 기존 누적 map 없음. 새 누적 map 생성.");
+            executionContext.put(NORMAL_STATISTIC_KEY, this.statistics);
+            log.info("[NormalStatisticWriter] 기존 누적 map 없음. 새 누적 map 생성.");
         } else {
-            log.info("[saveStepExecution] 기존 누적 map 로드 (재시작)");
+            log.info("[NormalStatisticWriter] 기존 누적 map 로드 (재시작)");
         }
     }
 
@@ -48,12 +48,12 @@ public class TransactionStatisticWriter implements ItemWriter<DataTransactionHis
         for (DataTransactionHistory history : chunk.getItems()) {
             TransactionFeed feed = history.getTransactionFeed();
             if(feed == null){
-                log.warn("[write] {}번 거래내역의 TransactionFeed가 null", history.getTransactionHistoryId());
+                log.warn("[NormalStatisticWriter] {}번 거래내역의 TransactionFeed가 null", history.getTransactionHistoryId());
                 continue;
             }
             TelecomCompany telecom = feed.getTelecomCompany();
             if(telecom == null){
-                log.warn("[write] {}번 거래내역의 TelecomCompany가 null", history.getTransactionHistoryId());
+                log.warn("[NormalStatisticWriter] {}번 거래내역의 TelecomCompany가 null", history.getTransactionHistoryId());
                 continue;
             }
 
@@ -62,10 +62,10 @@ public class TransactionStatisticWriter implements ItemWriter<DataTransactionHis
             StatisticResponseDto statisticDto = statistics.getOrDefault(
                     telecomId,
                     StatisticResponseDto.builder()
-                        .totalPrice(0L)
-                        .totalDataAmount(0L)
-                        .transactionCount(0L)
-                        .build()
+                            .totalPrice(0L)
+                            .totalDataAmount(0L)
+                            .transactionCount(0L)
+                            .build()
             );
 
             Long price = history.getTransactionFinalPrice() == null ? 0L : history.getTransactionFinalPrice();
@@ -77,12 +77,12 @@ public class TransactionStatisticWriter implements ItemWriter<DataTransactionHis
                     .transactionCount(statisticDto.getTransactionCount() + 1)
                     .build();
 
-            log.info("[write] 통신사: {}, price: {}, amount: {}", telecom.getName(), history.getTransactionFinalPrice(), feed.getSalesDataAmount());
+            log.info("[NormalStatisticWriter] 통신사: {}, price: {}, amount: {}", telecom.getName(), history.getTransactionFinalPrice(), feed.getSalesDataAmount());
 
             statistics.put(telecomId, statisticDto);
         }
 
-        stepExecution.getExecutionContext().put(STEP_STATISTIC_KEY, statistics);
-        log.info("[write] 누적 집계 완료. 거래내역: {}건, 실 집계: {}개 통신사", chunk.getItems().size(), statistics.size());
+        stepExecution.getExecutionContext().put(NORMAL_STATISTIC_KEY, statistics);
+        log.info("[NormalStatisticWriter] 누적 집계 완료. 거래내역: {}건, 실 집계: {}개 통신사", chunk.getItems().size(), statistics.size());
     }
 }
