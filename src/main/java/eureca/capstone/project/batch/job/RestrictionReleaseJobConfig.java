@@ -69,7 +69,6 @@ public class RestrictionReleaseJobConfig {
                 .retryLimit(3)
                 .retry(DataIntegrityViolationException.class)
                 .skipLimit(10)
-                .skip(NullPointerException.class)
                 .listener(customSkipListener)
                 .listener(customRetryListener)
                 .build();
@@ -128,7 +127,6 @@ public class RestrictionReleaseJobConfig {
                 .retryLimit(3)
                 .retry(DataIntegrityViolationException.class)
                 .skipLimit(10)
-                .skip(NullPointerException.class)
                 .listener(customSkipListener)
                 .listener(customRetryListener)
                 .build();

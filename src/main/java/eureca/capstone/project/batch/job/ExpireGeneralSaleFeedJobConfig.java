@@ -87,8 +87,6 @@ public class ExpireGeneralSaleFeedJobConfig {
                 .retry(OptimisticLockingFailureException.class)
 
                 .skipLimit(10)
-                .skip(NullPointerException.class)
-                .skip(IllegalArgumentException.class)
 
                 .listener(customSkipListener)
                 .listener(customRetryListener)
