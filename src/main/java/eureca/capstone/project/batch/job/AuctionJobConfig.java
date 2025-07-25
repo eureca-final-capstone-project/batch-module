@@ -74,7 +74,6 @@ public class AuctionJobConfig {
                 .retryLimit(3)
                 .retry(OptimisticLockingFailureException.class) // 재시도할 예외
                 .skipLimit(10)
-                .skip(RuntimeException.class)
                 .listener(customSkipListener)
                 .listener(customRetryListener)
                 .build();

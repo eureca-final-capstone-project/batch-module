@@ -66,6 +66,10 @@ public class BidStatisticSaveTasklet implements Tasklet {
             log.error("[NormalStatisticSaveTasklet] 통계 데이터 DB 저장 중 예상치 못한 오류 발생. time={}. {}", statisticsTime, e.getMessage(), e);
             throw e;
         }
+
+        // Job 재실행 시 데이터가 중복 누적되는 것을 방지하기 위해 ExecutionContext에서 통계 데이터를 제거합니다.
+        executionContext.remove(BidVolumeStatisticWriter.VOLUME_STATISTIC_KEY);
+
         return RepeatStatus.FINISHED;
     }
 }
