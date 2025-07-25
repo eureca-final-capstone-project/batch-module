@@ -121,6 +121,9 @@ public class NormalStatisticSaveTasklet implements Tasklet {
             throw e;
         }
 
+        // Job 재실행 시 데이터가 중복 누적되는 것을 방지하기 위해 ExecutionContext에서 통계 데이터를 제거합니다.
+        executionContext.remove(NormalStatisticWriter.NORMAL_STATISTIC_KEY);
+
         return RepeatStatus.FINISHED;
     }
 }
