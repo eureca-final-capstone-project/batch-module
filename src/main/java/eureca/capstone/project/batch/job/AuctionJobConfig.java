@@ -91,6 +91,8 @@ public class AuctionJobConfig {
             SELECT tf FROM TransactionFeed tf
             JOIN FETCH tf.status
             JOIN FETCH tf.salesType
+            JOIN FETCH tf.user
+            JOIN FETCH tf.telecomCompany
             WHERE tf.salesType.salesTypeId = :salesTypeId
             AND tf.status.code = 'ON_SALE'
             AND tf.isDeleted = false
