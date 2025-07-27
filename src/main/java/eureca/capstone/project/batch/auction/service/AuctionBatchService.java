@@ -5,8 +5,11 @@ import eureca.capstone.project.batch.common.entity.TelecomCompany;
 import eureca.capstone.project.batch.common.repository.TelecomCompanyRepository;
 import eureca.capstone.project.batch.common.util.ChangeTypeManager;
 import eureca.capstone.project.batch.common.util.StatusManager;
+import eureca.capstone.project.batch.pay.entity.ChangeType;
 import eureca.capstone.project.batch.pay.entity.PayHistory;
+import eureca.capstone.project.batch.pay.entity.PayHistoryDetail;
 import eureca.capstone.project.batch.pay.entity.UserPay;
+import eureca.capstone.project.batch.pay.repository.PayHistoryDetailRepository;
 import eureca.capstone.project.batch.pay.repository.PayHistoryRepository;
 import eureca.capstone.project.batch.pay.repository.UserPayRepository;
 import eureca.capstone.project.batch.transaction_feed.entity.DataCoupon;
@@ -38,6 +41,7 @@ public class AuctionBatchService {
     private final UserDataRepository userDataRepository;
     private final UserPayRepository userPayRepository;
     private final PayHistoryRepository payHistoryRepository;
+    private final PayHistoryDetailRepository payHistoryDetailRepository;
     private final DataCouponRepository dataCouponRepository;
     private final DataTransactionHistoryRepository dataTransactionHistoryRepository;
     private final TransactionFeedRepository transactionFeedRepository;
@@ -68,18 +72,9 @@ public class AuctionBatchService {
         log.info("[AuctionBatchService] 데이터 쿠폰 발급 및 UserDataCoupon 생성 완료. 구매자: {}, 판매글 ID: {}", buyer.getUserId(), feed.getTransactionFeedId());
 
         // 4. 페이 변동 내역 생성
-        payHistoryRepository.save(PayHistory.builder()
-                .user(buyer)
-                .changeType(changeTypeManager.getChangeType("구매"))
-                .changedPay(-finalBidAmount)
-                .finalPay(userPayRepository.findById(buyer.getUserId()).map(UserPay::getPay).orElse(0L))
-                .build());
-        payHistoryRepository.save(PayHistory.builder()
-                .user(seller)
-                .changeType(changeTypeManager.getChangeType("판매"))
-                .changedPay(finalBidAmount)
-                .finalPay(userPayRepository.findById(seller.getUserId()).map(UserPay::getPay).orElse(0L))
-                .build());
+        createPayHistory(buyer, "구매", -finalBidAmount, txHistory);
+        createPayHistory(seller, "판매", finalBidAmount, txHistory);
+
         log.info("[AuctionBatchService] 페이 변동 내역 생성 완료. 구매자: {}, 판매자: {}, 거래 내역 ID: {}", buyer.getUserId(), seller.getUserId(), txHistory.getTransactionHistoryId());
 
         // 5. 판매글 상태 업데이트
@@ -147,5 +142,30 @@ public class AuctionBatchService {
                 .status(activeStatus)
                 .build();
         userDataCouponRepository.save(userDataCoupon);
+    }
+
+
+    private void createPayHistory(User user, String type, Long changedPay, DataTransactionHistory txHistory) {
+        log.info("[AuctionBatchService] 페이 변동 내역 생성 시작. 사용자 ID: {}, 유형: {}, 변경된 페이: {}", user.getUserId(), type, changedPay);
+
+        UserPay userPay = userPayRepository.findById(user.getUserId()).orElseThrow();
+        ChangeType changeType = changeTypeManager.getChangeType(type);
+        log.info("[AuctionBatchService] ChangeType 조회 완료. 유형: {}", changeType.getType());
+
+        PayHistory payHistory = PayHistory.builder()
+                .user(user)
+                .changeType(changeType)
+                .changedPay(changedPay)
+                .finalPay(userPay.getPay())
+                .build();
+        payHistoryRepository.save(payHistory);
+        log.info("[AuctionBatchService] 페이 변동 내역 저장 완료. PayHistory ID: {}", payHistory.getPayHistoryId());
+
+        PayHistoryDetail detail = PayHistoryDetail.builder()
+                .payHistory(payHistory)
+                .dataTransactionHistory(txHistory)
+                .build();
+        payHistoryDetailRepository.save(detail);
+        log.info("[AuctionBatchService] 페이 변동 상세 내역 저장 완료. PayHistoryDetail ID: {}", detail.getPayHistoryDetailId());
     }
 }
