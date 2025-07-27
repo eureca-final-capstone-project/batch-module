@@ -3,6 +3,7 @@ package eureca.capstone.project.batch.job;
 import eureca.capstone.project.batch.alarm.dto.AlarmCreationDto;
 import eureca.capstone.project.batch.alarm.service.NotificationService;
 import eureca.capstone.project.batch.common.entity.Status;
+import eureca.capstone.project.batch.common.service.StatusService;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.pay.entity.UserEventCoupon;
@@ -46,6 +47,7 @@ public class ExpireEventCouponJobConfig {
     private final DataSource dataSource;
     private final ExecutionListener executionListener;
     private final RetryPolicy retryPolicy;
+    private final StatusService statusService;
 
     @Bean
     public Job expireEventCouponJob(Step expireEventCouponStep) {
@@ -75,11 +77,10 @@ public class ExpireEventCouponJobConfig {
     @Bean
     @StepScope
     public JpaPagingItemReader<UserEventCoupon> expireEventCouponReader(
-            @Value("#{jobParameters['currentTime']}") String currentTime,
-            @Qualifier("getStatuses") Map<String, Status> statusMap) {
+            @Value("#{jobParameters['currentTime']}") String currentTime) {
         LocalDateTime today = LocalDateTime.parse(currentTime);
-        Status expiredStatus = statusMap.get("EXPIRED");
-        Status usedStatus = statusMap.get("USED");
+        Status expiredStatus = statusService.getStatus("COUPON", "EXPIRED");
+        Status usedStatus = statusService.getStatus("COUPON", "USED");
         List<Status> excludedStatuses = List.of(expiredStatus, usedStatus);
 
         Map<String, Object> params = new HashMap<>();
@@ -99,14 +100,13 @@ public class ExpireEventCouponJobConfig {
 
 
     @Bean
-    public ItemProcessor<UserEventCoupon, UserEventCoupon> expireEventCouponProcessor(
-            @Qualifier("getStatuses") Map<String, Status> statusMap) {
-            Status expiredStatus = statusMap.get("EXPIRED");
+    public ItemProcessor<UserEventCoupon, UserEventCoupon> expireEventCouponProcessor() {
+        Status expiredStatus = statusService.getStatus("COUPON", "EXPIRED");
 
-            return coupon ->{
-                coupon.changeStatus(expiredStatus);
-                return coupon;
-            };
+        return coupon ->{
+            coupon.changeStatus(expiredStatus);
+            return coupon;
+        };
     }
 
     @Bean

@@ -52,6 +52,7 @@ public class AuctionJobConfig {
     private final CustomRetryListener customRetryListener;
     private final TransactionFeedSearchRepository transactionFeedSearchRepository;
     private final NotificationService notificationService;
+    private final EntityManager entityManager;
 
     private static final int CHUNK_SIZE = 100;
 
@@ -89,6 +90,8 @@ public class AuctionJobConfig {
             SELECT tf FROM TransactionFeed tf
             JOIN FETCH tf.status
             JOIN FETCH tf.salesType
+            JOIN FETCH tf.user
+            JOIN FETCH tf.telecomCompany
             WHERE tf.salesType.salesTypeId = :salesTypeId
             AND tf.status.code = 'ON_SALE'
             AND tf.isDeleted = false
@@ -137,7 +140,6 @@ public class AuctionJobConfig {
     @Bean
     public ItemWriter<AuctionResult> auctionFeedWriter() {
         return chunk -> {
-            EntityManager entityManager = entityManagerFactory.createEntityManager();
             for (AuctionResult result : chunk.getItems()) {
                 TransactionFeed managedFeed = entityManager.merge(result.getTransactionFeed());
                 if (result.getType() == AuctionResult.Type.WINNING) {
