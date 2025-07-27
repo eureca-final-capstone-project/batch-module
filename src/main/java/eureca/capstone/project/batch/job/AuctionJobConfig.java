@@ -52,6 +52,7 @@ public class AuctionJobConfig {
     private final CustomRetryListener customRetryListener;
     private final TransactionFeedSearchRepository transactionFeedSearchRepository;
     private final NotificationService notificationService;
+    private final EntityManager entityManager;
 
     private static final int CHUNK_SIZE = 100;
 
@@ -138,7 +139,6 @@ public class AuctionJobConfig {
     @Bean
     public ItemWriter<AuctionResult> auctionFeedWriter() {
         return chunk -> {
-            EntityManager entityManager = entityManagerFactory.createEntityManager();
             for (AuctionResult result : chunk.getItems()) {
                 TransactionFeed managedFeed = entityManager.merge(result.getTransactionFeed());
                 if (result.getType() == AuctionResult.Type.WINNING) {
