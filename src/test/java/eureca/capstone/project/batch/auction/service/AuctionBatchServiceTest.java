@@ -8,6 +8,7 @@ import eureca.capstone.project.batch.common.util.StatusManager;
 import eureca.capstone.project.batch.pay.entity.ChangeType;
 import eureca.capstone.project.batch.pay.entity.PayHistory;
 import eureca.capstone.project.batch.pay.entity.UserPay;
+import eureca.capstone.project.batch.pay.repository.PayHistoryDetailRepository;
 import eureca.capstone.project.batch.pay.repository.PayHistoryRepository;
 import eureca.capstone.project.batch.pay.repository.UserPayRepository;
 import eureca.capstone.project.batch.transaction_feed.entity.DataCoupon;
@@ -21,6 +22,7 @@ import eureca.capstone.project.batch.transaction_feed.repository.UserDataCouponR
 import eureca.capstone.project.batch.user.entity.User;
 import eureca.capstone.project.batch.user.entity.UserData;
 import eureca.capstone.project.batch.user.repository.UserDataRepository;
+import eureca.capstone.project.batch.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,6 +48,10 @@ class AuctionBatchServiceTest {
     private UserPayRepository userPayRepository;
     @Mock
     private PayHistoryRepository payHistoryRepository;
+    @Mock
+    private PayHistoryDetailRepository payHistoryDetailRepository;
+    @Mock
+    private UserRepository userRepository;
     @Mock
     private DataCouponRepository dataCouponRepository;
     @Mock
