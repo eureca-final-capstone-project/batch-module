@@ -24,7 +24,7 @@ import java.util.Map;
 public class NormalStatisticWriter implements ItemWriter<DataTransactionHistory> {
     public static final String NORMAL_STATISTIC_KEY = "telecomStatistic";
     private StepExecution stepExecution;
-    private Map<Long, StatisticResponseDto> statistics; // (통신사 id,계산)
+    private Map<Long, StatisticResponseDto> statistics;
 
     @BeforeStep
     public void saveStepExecution(StepExecution stepExecution) {
