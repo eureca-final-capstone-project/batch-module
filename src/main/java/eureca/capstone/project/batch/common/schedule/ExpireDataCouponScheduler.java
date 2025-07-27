@@ -18,7 +18,7 @@ public class ExpireDataCouponScheduler {
     private final JobLauncher jobLauncher;
     private final Job expireDataCouponJob;
 
-    @Scheduled(cron = "0 10 0 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "30 0 0 * * *", zone = "Asia/Seoul")
     public void runExpireDataCouponBatch() {
         try {
             log.info("[runExpireDataCouponBatch] 데이터 충전권 기간만료 배치 실행");

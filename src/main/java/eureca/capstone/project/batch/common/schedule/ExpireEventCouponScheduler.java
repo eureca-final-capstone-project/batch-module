@@ -18,7 +18,7 @@ public class ExpireEventCouponScheduler {
     private final JobLauncher jobLauncher;
     private final Job expireEventCouponJob;
 
-    @Scheduled(cron = "0 5 0 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "30 0 0 * * *", zone = "Asia/Seoul")
     public void runExpireEventCouponBatch() {
         try {
             log.info("[runExpireEventCouponBatch] 이벤트 쿠폰 기간만료 배치 실행");
