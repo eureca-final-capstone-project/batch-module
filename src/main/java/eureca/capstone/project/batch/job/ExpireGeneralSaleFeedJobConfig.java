@@ -1,10 +1,10 @@
 package eureca.capstone.project.batch.job;
 
-import eureca.capstone.project.batch.alarm.service.NotificationService;
 import eureca.capstone.project.batch.common.entity.Status;
 import eureca.capstone.project.batch.common.repository.StatusRepository;
 import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
+import eureca.capstone.project.batch.component.listener.GeneralSaleFeedNotificationListener;
 import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
 import eureca.capstone.project.batch.transaction_feed.document.TransactionFeedDocument;
 import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
@@ -30,18 +30,16 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Configuration
 public class ExpireGeneralSaleFeedJobConfig {
     private final EntityManagerFactory entityManagerFactory;
-    private final StatusRepository statusRepository;
     private final JobCompletionNotificationListener jobCompletionNotificationListener;
     private final TransactionFeedRepository transactionFeedRepository;
     private final CustomSkipListener customSkipListener;
     private final CustomRetryListener customRetryListener;
     private final TransactionFeedSearchRepository transactionFeedSearchRepository;
-    private final NotificationService notificationService;
+    private final GeneralSaleFeedNotificationListener generalSaleFeedNotificationListener;
 
     private static final int CHUNK_SIZE = 100;
 
@@ -54,16 +52,15 @@ public class ExpireGeneralSaleFeedJobConfig {
                                           CustomSkipListener customSkipListener,
                                           CustomRetryListener customRetryListener,
                                           TransactionFeedSearchRepository transactionFeedSearchRepository,
-                                          NotificationService notificationService) {
+                                          GeneralSaleFeedNotificationListener generalSaleFeedNotificationListener) {
         this.entityManagerFactory = entityManagerFactory;
-        this.statusRepository = statusRepository;
         this.jobCompletionNotificationListener = jobCompletionNotificationListener;
         this.transactionFeedRepository = transactionFeedRepository;
         this.customSkipListener = customSkipListener;
         this.customRetryListener = customRetryListener;
         this.expiredStatus = statusRepository.findByDomainAndCode("FEED", "EXPIRED").orElseThrow(() -> new IllegalArgumentException("기간만료 상태를 찾을 수 없습니다."));
         this.transactionFeedSearchRepository = transactionFeedSearchRepository;
-        this.notificationService = notificationService;
+        this.generalSaleFeedNotificationListener = generalSaleFeedNotificationListener;
     }
 
     @Bean
@@ -90,6 +87,7 @@ public class ExpireGeneralSaleFeedJobConfig {
 
                 .listener(customSkipListener)
                 .listener(customRetryListener)
+                .listener(generalSaleFeedNotificationListener)
                 .build();
     }
 
@@ -128,25 +126,15 @@ public class ExpireGeneralSaleFeedJobConfig {
         return chunk -> {
             List<Long> idsToUpdate = chunk.getItems().stream()
                     .map(TransactionFeed::getTransactionFeedId)
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (!idsToUpdate.isEmpty()) {
                 transactionFeedRepository.updateStatusForIds(this.expiredStatus, idsToUpdate);
                 List<TransactionFeed> updatedFeeds = transactionFeedRepository.findAllById(idsToUpdate);
                 List<TransactionFeedDocument> documentsToUpdate = updatedFeeds.stream()
                         .map(TransactionFeedDocument::fromEntity)
-                        .collect(Collectors.toList());
+                        .toList();
                 transactionFeedSearchRepository.saveAll(documentsToUpdate);
-
-                updatedFeeds.forEach(feed -> {
-                    if (feed.getUser() != null) {
-                        notificationService.sendNotification(
-                                feed.getUser().getUserId(),
-                                "게시글 만료",
-                                String.format("[%s] 게시글이 만료되었습니다.", feed.getTitle())
-                        );
-                    }
-                });
             }
         };
     }
