@@ -2,6 +2,7 @@ package eureca.capstone.project.batch.job;
 
 import eureca.capstone.project.batch.alarm.service.NotificationService;
 import eureca.capstone.project.batch.auction.service.AuctionBatchService;
+import eureca.capstone.project.batch.component.listener.AuctionNotificationListener;
 import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
 import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
@@ -53,6 +54,7 @@ public class AuctionJobConfig {
     private final TransactionFeedSearchRepository transactionFeedSearchRepository;
     private final NotificationService notificationService;
     private final EntityManager entityManager;
+    private final AuctionNotificationListener auctionNotificationListener;
 
     private static final int CHUNK_SIZE = 100;
 
@@ -77,6 +79,7 @@ public class AuctionJobConfig {
                 .skipLimit(10)
                 .listener(customSkipListener)
                 .listener(customRetryListener)
+                .listener(auctionNotificationListener)
                 .build();
     }
 
@@ -144,32 +147,8 @@ public class AuctionJobConfig {
                 TransactionFeed managedFeed = entityManager.merge(result.getTransactionFeed());
                 if (result.getType() == AuctionResult.Type.WINNING) {
                     auctionBatchService.processWinningBid(managedFeed, result.getBuyer(), result.getFinalBidAmount());
-                    // 낙찰자에게 알림 전송
-                    if (result.getBuyer() != null) {
-                        notificationService.sendNotification(
-                                result.getBuyer().getUserId(),
-                                "구매",
-                                String.format("[%s] 게시글에 낙찰되었습니다! 낙찰 금액: %d", managedFeed.getTitle(), result.getFinalBidAmount())
-                        );
-                    }
-                    // 판매자에게 알림 전송
-                    if (managedFeed.getUser() != null) {
-                        notificationService.sendNotification(
-                                managedFeed.getUser().getUserId(),
-                                "판매",
-                                String.format("[%s] 게시글이 낙찰되었습니다! 낙찰 금액: %d", managedFeed.getTitle(), result.getFinalBidAmount())
-                        );
-                    }
                 } else if (result.getType() == AuctionResult.Type.FAILED) {
                     auctionBatchService.processFailedBid(managedFeed);
-                    // 유찰된 판매글 등록자에게 알림 전송
-                    if (managedFeed.getUser() != null) {
-                        notificationService.sendNotification(
-                                managedFeed.getUser().getUserId(),
-                                "게시글 만료",
-                                String.format("[%s] 게시글이 유찰되었습니다.", managedFeed.getTitle())
-                        );
-                    }
                 }
 
                 transactionFeedSearchRepository.save(TransactionFeedDocument.fromEntity(managedFeed));
@@ -179,7 +158,7 @@ public class AuctionJobConfig {
 
 
     public static class AuctionResult {
-        enum Type { WINNING, FAILED }
+        public enum Type { WINNING, FAILED }
 
         private final TransactionFeed transactionFeed;
         private final User buyer;
