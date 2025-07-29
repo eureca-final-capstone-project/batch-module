@@ -1,5 +1,6 @@
 package eureca.capstone.project.batch.job;
 
+import eureca.capstone.project.batch.component.listener.CustomSkipListener;
 import eureca.capstone.project.batch.component.listener.ExecutionContextCleanupListener;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
@@ -41,6 +42,7 @@ public class TransactionStatisticJobConfig {
     private final EntityManagerFactory entityManagerFactory;
     private final RetryPolicy retryPolicy;
     private final ExecutionListener executionListener;
+    private final CustomSkipListener customSkipListener;
     private final NormalStatisticWriter normalStatisticWriter;
     private final BidVolumeStatisticWriter bidVolumeStatisticWriter;
     private final NormalStatisticSaveTasklet normalStatisticSaveTasklet;
@@ -77,6 +79,7 @@ public class TransactionStatisticJobConfig {
                 .retryPolicy(retryPolicy.createRetryPolicy())
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
                 .listener(executionListener)
+                .listener(customSkipListener)
                 .listener(promotionListener())
                 .build();
     }
@@ -97,6 +100,13 @@ public class TransactionStatisticJobConfig {
                 .<DataTransactionHistory, DataTransactionHistory>chunk(100, platformTransactionManager)
                 .reader(volumeJpaReader(null))
                 .writer(bidVolumeStatisticWriter)
+                .faultTolerant()
+                .skip(DataIntegrityViolationException.class)
+                .skipLimit(3)
+                .retryPolicy(retryPolicy.createRetryPolicy())
+                .backOffPolicy(retryPolicy.createBackoffPolicy())
+                .listener(executionListener)
+                .listener(customSkipListener)
                 .listener(promotionListener())
                 .build();
     }
