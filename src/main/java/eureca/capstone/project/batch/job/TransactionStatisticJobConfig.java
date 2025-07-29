@@ -1,5 +1,6 @@
 package eureca.capstone.project.batch.job;
 
+import eureca.capstone.project.batch.component.listener.ExecutionContextCleanupListener;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.component.tasklet.BidStatisticSaveTasklet;
@@ -85,6 +86,7 @@ public class TransactionStatisticJobConfig {
     public Step normalStatisticSaveStep() {
         return new StepBuilder("normalStatisticSaveStep", jobRepository)
                 .tasklet(normalStatisticSaveTasklet, platformTransactionManager)
+                .listener(new ExecutionContextCleanupListener(NormalStatisticWriter.NORMAL_STATISTIC_KEY))
                 .build();
     }
 
@@ -104,6 +106,7 @@ public class TransactionStatisticJobConfig {
     public Step bidStatisticSaveStep() {
         return new StepBuilder("bidStatisticSaveStep", jobRepository)
                 .tasklet(bidStatisticSaveTasklet, platformTransactionManager)
+                .listener(new ExecutionContextCleanupListener(BidVolumeStatisticWriter.VOLUME_STATISTIC_KEY))
                 .build();
     }
 
