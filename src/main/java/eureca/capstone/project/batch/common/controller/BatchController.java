@@ -210,32 +210,6 @@ public class BatchController {
         return ResponseEntity.ok(failures);
     }
 
-    @Operation(summary = "실패한 월 데이터 배치 재시작", description = "가장 최근에 실패한 'resetUserDataJob'을 찾아 재시작합니다.")
-    @PostMapping("/restart-failed")
-    public String restartFailedResetUserDataJob() {
-        String jobName = "resetUserDataJob";
-        List<JobInstance> jobInstances = jobExplorer.getJobInstances(jobName, 0, 10);
-
-        for (JobInstance instance : jobInstances) {
-            List<JobExecution> jobExecutions = jobExplorer.getJobExecutions(instance);
-            for (JobExecution execution : jobExecutions) {
-                if (execution.getStatus() == BatchStatus.FAILED) {
-                    try{
-                        Long failedId = execution.getId();
-                        Long restartedId = jobOperator.restart(failedId);
-                        log.info("[restartFailedResetUserDataJob] 재시작 성공. 기존 executionId: {}, 재시작 executionId: {}", failedId, restartedId);
-                        return "재시작 성공: " + restartedId;
-                    } catch (Exception e){
-                        log.error("[restartFailedResetUserDataJob] 재시작 실패: {}", e.getMessage());
-                        return "재시작 실패: " + e.getMessage();
-                    }
-                }
-            }
-        }
-        log.info("[restartFailedResetUserDataJob] 실패한 Job 없음");
-        return "실패한 Job이 없음.";
-    }
-
     @Operation(summary = "단일 실패/스킵 항목 재처리", description = "특정 실패 로그 ID를 사용하여 해당 항목을 재처리합니다.")
     @PostMapping("/failures/{failureLogId}/reprocess")
     public ResponseEntity<String> reprocessSingleFailure(
