@@ -43,13 +43,11 @@ public class ExpireDataCouponJobConfig {
     private final ExecutionListener executionListener;
     private final RetryPolicy retryPolicy;
     private final StatusService statusService;
-    private final CouponExpirationSummaryListener summaryListener;
 
     @Bean
     public Job expireDataCouponJob() {
         return new JobBuilder("expireDataCouponJob", jobRepository)
                 .start(expireDataCouponStep())
-                .listener(summaryListener)
                 .build();
     }
 
@@ -64,7 +62,6 @@ public class ExpireDataCouponJobConfig {
                 .retryPolicy(retryPolicy.createRetryPolicy())
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
                 .listener(executionListener)
-                .listener(summaryListener)
                 .build();
     }
 
@@ -81,7 +78,7 @@ public class ExpireDataCouponJobConfig {
         params.put("today", today);
         params.put("statuses", excludedStatuses);
 
-        String query = "select udc from UserDataCoupon udc where udc.expiredAt <= :today and udc.status not in :statuses";
+        String query = "select udc from UserDataCoupon udc where udc.expiresAt <= :today and udc.status not in :statuses";
 
         return new JpaPagingItemReaderBuilder<UserDataCoupon>()
                 .name("expireDataCouponReader")
