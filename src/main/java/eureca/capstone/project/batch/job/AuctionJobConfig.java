@@ -33,6 +33,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -140,6 +141,8 @@ public class AuctionJobConfig {
     @Bean
     public ItemWriter<AuctionResult> auctionFeedWriter() {
         return chunk -> {
+            List<TransactionFeedDocument> feedDocs = new ArrayList<>();
+
             for (AuctionResult result : chunk.getItems()) {
                 TransactionFeed managedFeed = entityManager.merge(result.getTransactionFeed());
                 if (result.getType() == AuctionResult.Type.WINNING) {
@@ -172,8 +175,26 @@ public class AuctionJobConfig {
                     }
                 }
 
-                transactionFeedSearchRepository.save(TransactionFeedDocument.fromEntity(managedFeed));
+                // ES에 동기화
+                transactionFeedSearchRepository.findById(managedFeed.getTransactionFeedId())
+                        .ifPresentOrElse(doc -> {
+                            if(result.getType() == AuctionResult.Type.WINNING) {
+                                doc.updateStatus(managedFeed.getStatus().getCode());
+                                doc.updateHighestPrice(result.getFinalBidAmount());
+                                log.info("[auctionFeedWriter] 낙찰. ES에 동기화. status:{}, 낙찰가:{}", managedFeed.getStatus().getCode(), result.getFinalBidAmount());
+                            }
+                            else if(result.getType() == AuctionResult.Type.FAILED) {
+                                doc.updateStatus(managedFeed.getStatus().getCode());
+                                log.info("[auctionFeedWriter] 유찰. ES에 동기화. status:{}", managedFeed.getStatus().getCode());
+                            }
+                            feedDocs.add(doc);
+                        }, ()->{
+                            // document가 없을 경우 방어용
+                           feedDocs.add(TransactionFeedDocument.fromEntity(managedFeed));
+                        });
             }
+            // bulk 저장
+            transactionFeedSearchRepository.saveAll(feedDocs);
         };
     }
 
