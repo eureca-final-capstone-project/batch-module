@@ -52,7 +52,6 @@ public class AuctionJobConfig {
     private final CustomSkipListener customSkipListener;
     private final CustomRetryListener customRetryListener;
     private final TransactionFeedSearchRepository transactionFeedSearchRepository;
-    private final NotificationService notificationService;
     private final EntityManager entityManager;
     private final AuctionNotificationListener auctionNotificationListener;
 
