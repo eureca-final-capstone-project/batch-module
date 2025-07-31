@@ -7,10 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
-import org.springframework.data.elasticsearch.annotations.Setting;
+import org.springframework.data.elasticsearch.annotations.*;
 
 @Getter
 @Builder
@@ -23,14 +20,38 @@ public class TransactionFeedDocument {
     @Id
     private Long id;
 
-    @Field(type = FieldType.Text, analyzer = "nori")
+    @MultiField(
+            mainField = @Field(
+                    type = FieldType.Text,
+                    analyzer = "index_analyzer",
+                    searchAnalyzer = "search_analyzer"
+            ),
+            otherFields = {
+                    @InnerField(suffix = "prefix", type = FieldType.Text, analyzer = "prefix_analyzer")
+            }
+    )
     private String title;
 
-    @Field(type = FieldType.Text, analyzer = "nori")
+    @MultiField(
+            mainField = @Field(
+                    type = FieldType.Text,
+                    analyzer = "index_analyzer",
+                    searchAnalyzer = "search_analyzer"
+            ),
+            otherFields = {
+                    @InnerField(suffix = "prefix", type = FieldType.Text, analyzer = "prefix_analyzer")
+            }
+    )
     private String content;
 
     @Field(type = FieldType.Long)
     private Long salesPrice;
+
+    @Field(type = FieldType.Long)
+    private Long currentHighestPrice;
+
+    @Field(type = FieldType.Long)
+    private Long sortPrice;
 
     @Field(type = FieldType.Long)
     private Long salesDataAmount;
@@ -38,13 +59,21 @@ public class TransactionFeedDocument {
     @Field(type = FieldType.Keyword)
     private Long sellerId;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(
+                    type = FieldType.Text,
+                    analyzer = "index_analyzer",
+                    searchAnalyzer = "search_analyzer"
+            ),
+            otherFields = {
+                    @InnerField(suffix = "prefix", type = FieldType.Text, analyzer = "prefix_analyzer")
+            }
+    )
     private String nickname;
 
     @Field(type = FieldType.Keyword)
     private Long telecomCompanyId;
 
-    @Field(type = FieldType.Text, analyzer = "nori")
     private String telecomCompanyName; // 검색용
 
     @Field(type = FieldType.Keyword)
@@ -64,13 +93,17 @@ public class TransactionFeedDocument {
 
     @Field(type = FieldType.Boolean)
     private boolean isDeleted;
-    
+
     public static TransactionFeedDocument fromEntity(TransactionFeed transactionFeed) {
+        Long initialPrice = transactionFeed.getSalesPrice();
+
         return TransactionFeedDocument.builder()
                 .id(transactionFeed.getTransactionFeedId())
                 .title(transactionFeed.getTitle())
                 .content(transactionFeed.getContent())
-                .salesPrice(transactionFeed.getSalesPrice())
+                .salesPrice(initialPrice)
+                .currentHighestPrice(initialPrice)
+                .sortPrice(initialPrice)
                 .salesDataAmount(transactionFeed.getSalesDataAmount())
                 .sellerId(transactionFeed.getUser().getUserId())
                 .nickname(transactionFeed.getUser().getNickname())
@@ -83,5 +116,14 @@ public class TransactionFeedDocument {
                 .expiresAt(transactionFeed.getExpiresAt())
                 .isDeleted(transactionFeed.isDeleted())
                 .build();
+    }
+
+    public void updateHighestPrice(Long price) {
+        this.currentHighestPrice = price;
+        this.sortPrice = price;
+    }
+
+    public void updateStatus(String status) {
+        this.status = status;
     }
 }
