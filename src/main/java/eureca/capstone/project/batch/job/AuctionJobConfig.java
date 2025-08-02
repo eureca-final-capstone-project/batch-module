@@ -152,7 +152,7 @@ public class AuctionJobConfig {
                         notificationService.sendNotification(
                                 result.getBuyer().getUserId(),
                                 "구매",
-                                String.format("[%s] 게시글에 낙찰되었습니다! 낙찰 금액: %d", managedFeed.getTitle(), result.getFinalBidAmount())
+                                String.format("[%s] 게시글이 (다챠페이)%d원에 낙찰되었습니다!", managedFeed.getTitle(), result.getFinalBidAmount())
                         );
                     }
                     // 판매자에게 알림 전송
@@ -160,7 +160,7 @@ public class AuctionJobConfig {
                         notificationService.sendNotification(
                                 managedFeed.getUser().getUserId(),
                                 "판매",
-                                String.format("[%s] 게시글이 낙찰되었습니다! 낙찰 금액: %d", managedFeed.getTitle(), result.getFinalBidAmount())
+                                String.format("[%s] 게시글이 (다챠페이)%d원에 낙찰되었습니다!", managedFeed.getTitle(), result.getFinalBidAmount())
                         );
                     }
                 } else if (result.getType() == AuctionResult.Type.FAILED) {
