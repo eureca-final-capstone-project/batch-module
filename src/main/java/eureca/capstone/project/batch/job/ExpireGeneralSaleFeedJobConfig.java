@@ -5,7 +5,7 @@ import eureca.capstone.project.batch.common.repository.StatusRepository;
 import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
 import eureca.capstone.project.batch.component.listener.GeneralSaleFeedNotificationListener;
-import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
+//import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
 import eureca.capstone.project.batch.transaction_feed.document.TransactionFeedDocument;
 import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
 import eureca.capstone.project.batch.transaction_feed.repository.TransactionFeedRepository;
@@ -34,7 +34,7 @@ import java.util.Map;
 @Configuration
 public class ExpireGeneralSaleFeedJobConfig {
     private final EntityManagerFactory entityManagerFactory;
-    private final JobCompletionNotificationListener jobCompletionNotificationListener;
+//    private final JobCompletionNotificationListener jobCompletionNotificationListener;
     private final TransactionFeedRepository transactionFeedRepository;
     private final CustomSkipListener customSkipListener;
     private final CustomRetryListener customRetryListener;
@@ -47,14 +47,14 @@ public class ExpireGeneralSaleFeedJobConfig {
 
     public ExpireGeneralSaleFeedJobConfig(EntityManagerFactory entityManagerFactory,
                                           StatusRepository statusRepository,
-                                          JobCompletionNotificationListener jobCompletionNotificationListener,
+//                                          JobCompletionNotificationListener jobCompletionNotificationListener,
                                           TransactionFeedRepository transactionFeedRepository,
                                           CustomSkipListener customSkipListener,
                                           CustomRetryListener customRetryListener,
                                           TransactionFeedSearchRepository transactionFeedSearchRepository,
                                           GeneralSaleFeedNotificationListener generalSaleFeedNotificationListener) {
         this.entityManagerFactory = entityManagerFactory;
-        this.jobCompletionNotificationListener = jobCompletionNotificationListener;
+//        this.jobCompletionNotificationListener = jobCompletionNotificationListener;
         this.transactionFeedRepository = transactionFeedRepository;
         this.customSkipListener = customSkipListener;
         this.customRetryListener = customRetryListener;
@@ -66,7 +66,7 @@ public class ExpireGeneralSaleFeedJobConfig {
     @Bean
     public Job expireGeneralSaleFeedJob(JobRepository jobRepository, Step expireGeneralSaleFeedStep) {
         return new JobBuilder("expireGeneralSaleFeedJob", jobRepository)
-                .listener(jobCompletionNotificationListener)
+//                .listener(jobCompletionNotificationListener)
                 .start(expireGeneralSaleFeedStep)
                 .build();
     }

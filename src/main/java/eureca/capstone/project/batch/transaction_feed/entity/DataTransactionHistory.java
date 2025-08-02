@@ -9,13 +9,19 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Table(name = "data_transaction_history")
-public class DataTransactionHistory extends BaseEntity {
+@Table(name = "data_transaction_history",
+    indexes = {
+            @Index(name = "idx_dth_createdat_histid", columnList = "created_at")
+    }
+)
+public class DataTransactionHistory {//extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "transaction_history_id")
@@ -34,4 +40,7 @@ public class DataTransactionHistory extends BaseEntity {
 
     @Column(name = "is_deleted")
     private Boolean isDeleted;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt; // 생성 시점
 }

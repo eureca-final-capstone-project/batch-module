@@ -64,10 +64,11 @@ public class BatchController {
     @PostMapping("/statistic-normal-transaction")
     public String runNormalBatchManual() {
         try {
+            LocalDateTime specificTime = LocalDateTime.of(2025, 8, 2, 10, 30, 0);
             log.info("[runNormalBatchManual] 일반판매 거래량/시세 통계 배치 실행");
             jobLauncher.run(normalStatisticJob, new JobParametersBuilder()
                     .addLong("time", System.currentTimeMillis())
-                    .addString("currentTime", LocalDateTime.now().toString())
+                    .addString("currentTime", specificTime.toString())//LocalDateTime.now().toString())
                     .toJobParameters());
             log.info("[runNormalBatchManual] 일반판매 거래량/시세 통계 배치 실행 완료");
             return "일반판매 거래량/시세 통계 배치 수동 실행 완료";

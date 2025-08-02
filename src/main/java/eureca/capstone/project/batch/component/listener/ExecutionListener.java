@@ -1,6 +1,6 @@
 package eureca.capstone.project.batch.component.listener;
 
-import eureca.capstone.project.batch.component.external.discord.DiscordNotificationService;
+//import eureca.capstone.project.batch.component.external.discord.DiscordNotificationService;
 import eureca.capstone.project.batch.component.external.slack.dto.SlackMessageRequestDto;
 import eureca.capstone.project.batch.component.external.slack.service.SlackService;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +18,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ExecutionListener implements StepExecutionListener, JobExecutionListener {
 
-    private final SlackService slackService;
-    private final DiscordNotificationService discordNotificationService;
+//    private final SlackService slackService;
+//    private final DiscordNotificationService discordNotificationService;
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Override
@@ -63,7 +63,7 @@ public class ExecutionListener implements StepExecutionListener, JobExecutionLis
                     .errorMessage(errorMessage)
                     .build();
 
-            slackService.sendMessage(message);
+//            slackService.sendMessage(message);
             String discordTitle = String.format("❌ BATCH-STEP-FAILURE : %s", jobName);
             String discordDescription = String.format(
                     """
@@ -76,7 +76,7 @@ public class ExecutionListener implements StepExecutionListener, JobExecutionLis
                     **Error Message**
                     %s
                     ```
-         
+
                     """,
                     stepName,
                     stepExecution.getStartTime().format(FORMATTER),
@@ -86,7 +86,7 @@ public class ExecutionListener implements StepExecutionListener, JobExecutionLis
                     stepExecution.getExitStatus().getExitCode(),
                     errorMessage
             );
-            discordNotificationService.sendMessage(discordTitle, discordDescription, Color.RED);
+//            discordNotificationService.sendMessage(discordTitle, discordDescription, Color.RED);
             log.error("배치 실패. Job: {}, Step: {}, 오류: {}", stepExecution.getJobExecution().getJobInstance().getJobName(),
                     stepExecution.getStepName(), errorMessage);
 
@@ -110,7 +110,7 @@ public class ExecutionListener implements StepExecutionListener, JobExecutionLis
                     stepExecution.getCommitCount(),
                     stepExecution.getExitStatus().getExitCode()
             );
-            discordNotificationService.sendMessage(discordTitle, discordDescription, Color.BLUE);
+//            discordNotificationService.sendMessage(discordTitle, discordDescription, Color.BLUE);
             String msg = String.format("[%s] Batch 작업 완료 - 총 read: %d, write: %d", stepExecution.getJobExecution().getJobInstance().getJobName(), readCount, writeCount);
             return new ExitStatus(ExitStatus.COMPLETED.getExitCode(), msg);
         }

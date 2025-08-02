@@ -5,7 +5,6 @@ import eureca.capstone.project.batch.auction.service.AuctionBatchService;
 import eureca.capstone.project.batch.component.listener.AuctionNotificationListener;
 import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
-import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
 import eureca.capstone.project.batch.transaction_feed.document.TransactionFeedDocument;
 import eureca.capstone.project.batch.transaction_feed.entity.Bids;
 import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
@@ -48,7 +47,7 @@ public class AuctionJobConfig {
     private final EntityManagerFactory entityManagerFactory;
     private final AuctionBatchService auctionBatchService;
     private final BidsRepository bidsRepository;
-    private final JobCompletionNotificationListener jobCompletionNotificationListener;
+//    private final JobCompletionNotificationListener jobCompletionNotificationListener;
     private final CustomSkipListener customSkipListener;
     private final CustomRetryListener customRetryListener;
     private final TransactionFeedSearchRepository transactionFeedSearchRepository;
@@ -60,7 +59,7 @@ public class AuctionJobConfig {
     @Bean
     public Job auctionProcessingJob() {
         return new JobBuilder("auctionProcessingJob", jobRepository)
-                .listener(jobCompletionNotificationListener) // Job 리스너 등록
+//                .listener(jobCompletionNotificationListener) // Job 리스너 등록
                 .start(auctionProcessingStep())
                 .build();
     }

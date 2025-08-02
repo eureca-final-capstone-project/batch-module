@@ -4,7 +4,7 @@ import eureca.capstone.project.batch.alarm.dto.AlarmCreationDto;
 import eureca.capstone.project.batch.alarm.service.NotificationService;
 import eureca.capstone.project.batch.common.entity.Status;
 import eureca.capstone.project.batch.common.service.StatusService;
-import eureca.capstone.project.batch.component.listener.ExecutionListener;
+//import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.pay.entity.UserEventCoupon;
 import jakarta.persistence.EntityManagerFactory;
@@ -45,7 +45,7 @@ public class ExpireEventCouponJobConfig {
     private final PlatformTransactionManager platformTransactionManager;
     private final EntityManagerFactory entityManagerFactory;
     private final DataSource dataSource;
-    private final ExecutionListener executionListener;
+//    private final ExecutionListener executionListener;
     private final RetryPolicy retryPolicy;
     private final StatusService statusService;
 
@@ -69,7 +69,7 @@ public class ExpireEventCouponJobConfig {
                 .faultTolerant()
                 .retryPolicy(retryPolicy.createRetryPolicy())
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
-                .listener(executionListener)
+//                .listener(executionListener)
                 .listener(expireEventCouponNotifyListener)
                 .build();
     }

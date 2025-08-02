@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-@Scope(value = "step", proxyMode = ScopedProxyMode.TARGET_CLASS)
-public class CouponExpirationSummaryListener implements JobExecutionListener,
+//@Scope(value = "step", proxyMode = ScopedProxyMode.TARGET_CLASS)
+public class CouponExpirationSummaryListener implements JobExecutionListener, StepExecutionListener,
         ItemWriteListener<UserDataCoupon> {
 
     private final NotificationService notificationService;

@@ -21,4 +21,10 @@ public abstract class BaseEntity {
 
     @LastModifiedDate
     private LocalDateTime updatedAt; // 수정 시점
+
+    // 테스트용/특수용으로 수동 덮어쓰기
+    public void overwriteTimestamps(LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
 }

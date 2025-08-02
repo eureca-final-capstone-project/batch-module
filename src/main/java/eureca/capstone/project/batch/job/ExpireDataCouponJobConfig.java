@@ -3,6 +3,7 @@ package eureca.capstone.project.batch.job;
 import eureca.capstone.project.batch.common.entity.Status;
 import eureca.capstone.project.batch.common.service.StatusService;
 import eureca.capstone.project.batch.component.listener.CouponExpirationSummaryListener;
+//import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.transaction_feed.entity.UserDataCoupon;
@@ -49,7 +50,7 @@ public class ExpireDataCouponJobConfig {
     public Job expireDataCouponJob() {
         return new JobBuilder("expireDataCouponJob", jobRepository)
                 .start(expireDataCouponStep())
-                .listener(summaryListener)
+//                .listener(summaryListener)
                 .build();
     }
 
@@ -64,7 +65,7 @@ public class ExpireDataCouponJobConfig {
                 .retryPolicy(retryPolicy.createRetryPolicy())
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
                 .listener(executionListener)
-                .listener(summaryListener)
+//                .listener(summaryListener)
                 .build();
     }
 
@@ -81,7 +82,7 @@ public class ExpireDataCouponJobConfig {
         params.put("today", today);
         params.put("statuses", excludedStatuses);
 
-        String query = "select udc from UserDataCoupon udc where udc.expiredAt <= :today and udc.status not in :statuses";
+        String query = "select udc from UserDataCoupon udc where udc.expiresAt <= :today and udc.status not in :statuses";
 
         return new JpaPagingItemReaderBuilder<UserDataCoupon>()
                 .name("expireDataCouponReader")
@@ -105,7 +106,7 @@ public class ExpireDataCouponJobConfig {
     public ItemWriter<UserDataCoupon> expireDataCouponWriter() {
         return new JdbcBatchItemWriterBuilder<UserDataCoupon>()
                 .dataSource(dataSource)
-                .sql("update user_data_coupon set status_id = :statusId where user_data_coupon_id = :userDataCouponId")
+                .sql("update \"user_data_coupon\" set \"status_id\" = :statusId where \"user_data_coupon_id\" = :userDataCouponId")
                 .beanMapped()
                 .assertUpdates(false)
                 .build();

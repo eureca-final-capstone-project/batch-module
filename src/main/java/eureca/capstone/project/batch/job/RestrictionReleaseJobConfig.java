@@ -6,7 +6,7 @@ import eureca.capstone.project.batch.common.entity.Status;
 import eureca.capstone.project.batch.common.util.StatusManager;
 import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
-import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
+//import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
 import eureca.capstone.project.batch.restriction.entity.RestrictionTarget;
 import eureca.capstone.project.batch.restriction.repository.RestrictionTargetRepository;
 import jakarta.persistence.EntityManagerFactory;
@@ -43,7 +43,7 @@ public class RestrictionReleaseJobConfig {
     private final UserAuthorityRepository userAuthorityRepository;
     private final RestrictionTargetRepository restrictionTargetRepository;
     private final StatusManager statusManager;
-    private final JobCompletionNotificationListener jobCompletionNotificationListener;
+//    private final JobCompletionNotificationListener jobCompletionNotificationListener;
     private final CustomSkipListener customSkipListener;
     private final CustomRetryListener customRetryListener;
 
@@ -52,7 +52,7 @@ public class RestrictionReleaseJobConfig {
     @Bean
     public Job restrictionReleaseJob() {
         return new JobBuilder("restrictionReleaseJob", jobRepository)
-                .listener(jobCompletionNotificationListener)
+//                .listener(jobCompletionNotificationListener)
                 .start(restrictionTargetExpirationStep())
                 .next(restrictionReleaseStep())
                 .build();

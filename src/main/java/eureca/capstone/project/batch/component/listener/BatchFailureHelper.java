@@ -3,7 +3,7 @@ package eureca.capstone.project.batch.component.listener;
 import eureca.capstone.project.batch.auth.entity.UserAuthority;
 import eureca.capstone.project.batch.common.entity.BatchFailureLog;
 import eureca.capstone.project.batch.common.service.BatchFailureLogService;
-import eureca.capstone.project.batch.component.external.discord.DiscordNotificationService;
+//import eureca.capstone.project.batch.component.external.discord.DiscordNotificationService;
 import eureca.capstone.project.batch.job.AuctionJobConfig;
 import eureca.capstone.project.batch.transaction_feed.entity.TransactionFeed;
 import jakarta.persistence.Id;
@@ -28,7 +28,7 @@ import java.lang.reflect.Field;
 public class BatchFailureHelper implements SkipListener<Object, Object>, RetryListener {
 
     private final BatchFailureLogService batchFailureLogService;
-    private final DiscordNotificationService discordNotificationService;
+//    private final DiscordNotificationService discordNotificationService;
 
     public void handleFailure(Throwable t, BatchFailureLog.FailureType failureType,
                                String stepPhase, Object item) {
@@ -106,7 +106,7 @@ public class BatchFailureHelper implements SkipListener<Object, Object>, RetryLi
         );
 
         Color color = getColorForFailureType(failureType);
-        discordNotificationService.sendMessage(title, description, color);
+//        discordNotificationService.sendMessage(title, description, color);
     }
 
     private String getEmojiForFailureType(BatchFailureLog.FailureType failureType) {

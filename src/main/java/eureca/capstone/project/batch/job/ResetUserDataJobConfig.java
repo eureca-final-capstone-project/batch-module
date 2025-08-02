@@ -1,6 +1,6 @@
 package eureca.capstone.project.batch.job;
 
-import eureca.capstone.project.batch.component.listener.ExecutionListener;
+//import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.processor.UserDataProcessor;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.user.entity.UserData;
@@ -37,7 +37,7 @@ public class ResetUserDataJobConfig {
     private final EntityManagerFactory entityManagerFactory;
     private final UserDataProcessor userDataProcessor;
     private final DataSource dataSource;
-    private final ExecutionListener executionListener;
+//    private final ExecutionListener executionListener;
     private final RetryPolicy retryPolicy;
 
     @Bean
@@ -57,7 +57,7 @@ public class ResetUserDataJobConfig {
                 .faultTolerant()
                 .retryPolicy(retryPolicy.createRetryPolicy())
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
-                .listener(executionListener)
+//                .listener(executionListener)
                 .build();
     }
 
