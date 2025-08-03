@@ -88,7 +88,7 @@ public class TransactionStatisticJobConfig {
             JdbcPagingItemReader<TransactionHistoryStatisticDto> transactionHistoryJdbcReader
     ) {
         return new StepBuilder("normalStatisticCalculateStep", jobRepository)
-                .<TransactionHistoryStatisticDto, TransactionHistoryStatisticDto>chunk(50, platformTransactionManager)
+                .<TransactionHistoryStatisticDto, TransactionHistoryStatisticDto>chunk(100, platformTransactionManager)
                 .reader(transactionHistoryJdbcReader)
                 .writer(normalStatisticWriter)
                 .faultTolerant()

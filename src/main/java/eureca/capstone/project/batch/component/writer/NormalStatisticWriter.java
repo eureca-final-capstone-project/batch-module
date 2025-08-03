@@ -89,9 +89,9 @@ public class NormalStatisticWriter implements ItemWriter<TransactionHistoryStati
 //    }
 
         for (TransactionHistoryStatisticDto dto : chunk.getItems()) {
-            if(dto.getTelecomCompanyId() == 3){
-                throw new DataIntegrityViolationException("DataIntegrityViolationException 발생: telecomId=" + dto.getTelecomCompanyId());
-            }
+//            if(dto.getTelecomCompanyId() == 3){
+//                throw new DataIntegrityViolationException("DataIntegrityViolationException 발생: telecomId=" + dto.getTelecomCompanyId());
+//            }
             if (dto == null) {
                 log.warn("[NormalStatisticWriter] DTO가 null입니다. 건너뜁니다.");
                 continue;
@@ -123,7 +123,7 @@ public class NormalStatisticWriter implements ItemWriter<TransactionHistoryStati
 
             statistics.put(telecomId, updated);
 
-            log.info("[NormalStatisticWriter] 통신사 ID: {}, price: {}, amount: {}", telecomId, price, dataAmount);
+            log.debug("[NormalStatisticWriter] 통신사 ID: {}, price: {}, amount: {}", telecomId, price, dataAmount);
         }
 
         stepExecution.getExecutionContext().put(NORMAL_STATISTIC_KEY, statistics);
