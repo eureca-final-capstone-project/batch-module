@@ -16,11 +16,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Table(name = "data_transaction_history",
-    indexes = {
-            @Index(name = "idx_dth_createdat_histid", columnList = "created_at")
-    }
-)
+@Table(name = "data_transaction_history")
 public class DataTransactionHistory {//extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

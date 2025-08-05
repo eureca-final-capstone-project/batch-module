@@ -4,6 +4,8 @@ import eureca.capstone.project.batch.common.entity.Status;
 import eureca.capstone.project.batch.common.service.StatusService;
 import eureca.capstone.project.batch.component.listener.CouponExpirationSummaryListener;
 //import eureca.capstone.project.batch.component.listener.ExecutionListener;
+import eureca.capstone.project.batch.component.listener.CustomRetryListener;
+import eureca.capstone.project.batch.component.listener.CustomSkipListener;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.transaction_feed.entity.UserDataCoupon;
@@ -29,6 +31,7 @@ import org.springframework.batch.item.database.support.SqlPagingQueryProviderFac
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -53,6 +56,8 @@ public class ExpireDataCouponJobConfig {
     private final RetryPolicy retryPolicy;
     private final StatusService statusService;
     private final CouponExpirationSummaryListener summaryListener;
+    private final CustomSkipListener customSkipListener;
+    private final CustomRetryListener customRetryListener;
 
     @Bean
     public Job expireDataCouponJob(
@@ -74,13 +79,37 @@ public class ExpireDataCouponJobConfig {
 //                .processor(expireDataCouponProcessor())
                 .writer(expireDataCouponWriter())
                 .faultTolerant()
+                .skip(DataIntegrityViolationException.class)
+                .skipLimit(3)
                 .retryPolicy(retryPolicy.createRetryPolicy())
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
+                .listener(customSkipListener)
+                .listener(customRetryListener)
                 .listener(executionListener)
 //                .listener(summaryListener)
                 .build();
     }
 
+//@Bean
+//public Step expireDataCouponStep(
+//        JpaPagingItemReader<UserDataCoupon> expireDataCouponReader
+//) {
+//    return new StepBuilder("expireDataCouponStep", jobRepository)
+//            .<UserDataCoupon, UserDataCoupon>chunk(100, platformTransactionManager)
+//            .reader(expireDataCouponReader)
+////                .processor(expireDataCouponProcessor())
+//            .writer(expireDataCouponWriter())
+//            .faultTolerant()
+//            .skip(DataIntegrityViolationException.class)
+//            .skipLimit(3)
+//            .retryPolicy(retryPolicy.createRetryPolicy())
+//            .backOffPolicy(retryPolicy.createBackoffPolicy())
+//            .listener(customSkipListener)
+//            .listener(customRetryListener)
+//            .listener(executionListener)
+////                .listener(summaryListener)
+//            .build();
+//}
 //    @Bean
 //    @StepScope
 //    public JpaPagingItemReader<UserDataCoupon> expireDataCouponReader(
@@ -104,7 +133,7 @@ public class ExpireDataCouponJobConfig {
 //                .pageSize(100)
 //                .build();
 //    }
-
+//
 //    @Bean
 //    public ItemProcessor<UserDataCoupon, UserDataCoupon> expireDataCouponProcessor() {
 //        Status expiredStatus = statusService.getStatus("COUPON", "EXPIRED");
@@ -178,5 +207,15 @@ public class ExpireDataCouponJobConfig {
                 .assertUpdates(false)
                 .build();
     }
+//
+//    @Bean
+//    public ItemProcessor<Long, Long> failOnIdOneProcessor() {
+//        return id -> {
+//            if (id != null && id == 3L) {
+//                throw new DataIntegrityViolationException("강제 실패: user_data_coupon_id=1"); // skip 대상이면 skip 처리됨
+//            }
+//            return id;
+//        };
+//    }
 
 }

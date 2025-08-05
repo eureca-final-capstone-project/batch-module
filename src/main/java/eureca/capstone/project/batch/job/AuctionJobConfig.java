@@ -28,6 +28,8 @@ import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilde
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DeadlockLoserDataAccessException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -74,6 +76,7 @@ public class AuctionJobConfig {
                 .faultTolerant()
                 .retryLimit(3)
                 .retry(OptimisticLockingFailureException.class) // 재시도할 예외
+                .skip(DataIntegrityViolationException.class)
                 .skipLimit(10)
                 .listener(customSkipListener)
                 .listener(customRetryListener)
@@ -121,6 +124,11 @@ public class AuctionJobConfig {
         return feed -> {
             log.info("[AuctionJobConfig] 판매글 처리 시작: ID = {}", feed.getTransactionFeedId());
 
+            if(feed.getTransactionFeedId() == 1000 || feed.getTransactionFeedId() == 1001) {
+                log.info("exception 발생시키기");
+                throw new DataIntegrityViolationException("강제 exception");
+//                throw new IllegalArgumentException("exception");
+            }
             List<Bids> bids = bidsRepository.findHighestBidWithUser(feed.getTransactionFeedId(), PageRequest.of(0,1));
             Optional<Bids> highestBid = bids.isEmpty() ? Optional.empty() : Optional.of(bids.get(0));
 

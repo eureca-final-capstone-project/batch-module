@@ -1,117 +1,119 @@
-package eureca.capstone.project.batch.common.config;
-
-import eureca.capstone.project.batch.common.entity.Status;
-import eureca.capstone.project.batch.common.entity.TelecomCompany;
-import eureca.capstone.project.batch.common.repository.StatusRepository;
-import eureca.capstone.project.batch.common.repository.TelecomCompanyRepository;
-import eureca.capstone.project.batch.transaction_feed.entity.*;
-import eureca.capstone.project.batch.transaction_feed.repository.*;
-import eureca.capstone.project.batch.user.entity.User;
-import eureca.capstone.project.batch.user.repository.UserRepository;
-import jakarta.annotation.PostConstruct;
-import jakarta.persistence.EntityManager;
-import org.springframework.transaction.annotation.Transactional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
-
-@Component
-@Profile("test")
-@RequiredArgsConstructor
-public class TestDataLoader {
-
-    private final UserRepository userRepository;
-    private final DataCouponRepository dataCouponRepository;
-    private final UserDataCouponRepository userDataCouponRepository;
-    private final StatusRepository statusRepository;
-    private final TelecomCompanyRepository telecomCompanyRepository;
-    private final DataTransactionHistoryRepository dataTransactionHistoryRepository;
-    private final TransactionFeedRepository transactionFeedRepository;
-    private final SalesTypeRepository salesTypeRepository;
-    private final EntityManager entityManager;
-
-    @PostConstruct
-    public void loadData() {
-        if (userDataCouponRepository.count() > 0) return;
-
-        TelecomCompany skt = telecomCompanyRepository.save(TelecomCompany.builder().name("SKT").build());
-
-        Status issuedStatus = Status.builder().statusId(4L).domain("COUPON").code("ISSUED").description("발급됨").build();
-
-//        statusRepository.saveAll(List.of(
-//                Status.builder().statusId(1L).domain("FEED").code("ON_SALE").description("판매중"
-//                ).build(),
-//                Status.builder().statusId(2L).domain("FEED").code("COMPLETED").description(
-//                        "거래완료").build(),
-//                Status.builder().statusId(3L).domain("FEED").code("EXPIRED").description(
-//                        "기간만료").build(),
+//package eureca.capstone.project.batch.common.config;
 //
-//                 // UserDataCoupon Status
-//                issuedStatus,
-//                Status.builder().statusId(5L).domain("COUPON").code("USED").description("사용됨").build(),
-//                Status.builder().statusId(6L).domain("COUPON").code("EXPIRED").description("기간 만료").build()
-//        ));
-
-
-//        User testUser = User.builder()
-//                .email("testUser@eureca.com")
-//                .password("password")
-//                .nickname("PerfTestUser")
-//                .phoneNumber("010-1234-5678")
-//                .telecomCompany(skt)
-//                .build();
-//        userRepository.save(testUser);
-        User testUser = userRepository.findById(1L).orElseThrow(RuntimeException::new);
-
-        DataCoupon sampleCoupon = dataCouponRepository.save(DataCoupon.builder()
-                .couponNumber(UUID.randomUUID().toString())
-                .dataAmount(1000L)
-                .telecomCompany(skt)
-                .build());
-
-        int totalCoupons = 1_000_000;
-        int expiredCount = 100_000;
-        int batchSize = 1000;
-
-        List<UserDataCoupon> couponList = new ArrayList<>();
-        LocalDateTime today = LocalDateTime.now();
-
-        for (int i = 1; i <= totalCoupons; i++) {
-            LocalDateTime expiredAt = (i <= expiredCount)
-                    ? today.minusDays(1)
-                    : today.plusDays(2);
-
-            UserDataCoupon userDataCoupon = UserDataCoupon.builder()
-                    .user(testUser)
-                    .dataCoupon(sampleCoupon)
-                    .expiresAt(expiredAt)
-                    .status(issuedStatus)
-                    .build();
-
-            couponList.add(userDataCoupon);
-
-            if (i % batchSize == 0) {
-                userDataCouponRepository.saveAll(couponList);
-                couponList.clear();
-                if (i % 100000 == 0) System.out.println("Saved " + i + "user data coupons...");
-            }
-        }
-
-        if (!couponList.isEmpty()) userDataCouponRepository.saveAll(couponList);
-
-        System.out.println("==================================================");
-        System.out.println("Test data loading finished. Total " + userDataCouponRepository.count() + " coupons are loaded.");
-        System.out.println("-> Expired Coupons: " + expiredCount);
-        System.out.println("-> Valid Coupons: " + (totalCoupons - expiredCount));
-        System.out.println("==================================================");
-
-    }
-}
+//import eureca.capstone.project.batch.common.entity.Status;
+//import eureca.capstone.project.batch.common.entity.TelecomCompany;
+//import eureca.capstone.project.batch.common.repository.StatusRepository;
+//import eureca.capstone.project.batch.common.repository.TelecomCompanyRepository;
+//import eureca.capstone.project.batch.transaction_feed.entity.*;
+//import eureca.capstone.project.batch.transaction_feed.repository.*;
+//import eureca.capstone.project.batch.user.entity.User;
+//import eureca.capstone.project.batch.user.repository.UserRepository;
+//import jakarta.annotation.PostConstruct;
+//import jakarta.persistence.EntityManager;
+//import org.springframework.transaction.annotation.Transactional;
+//import lombok.RequiredArgsConstructor;
+//import org.springframework.context.annotation.Profile;
+//import org.springframework.jdbc.core.JdbcTemplate;
+//import org.springframework.stereotype.Component;
+//
+//import java.time.LocalDateTime;
+//import java.util.*;
+//import java.util.stream.Collectors;
+//
+//@Component
+//@Profile("test")
+//@RequiredArgsConstructor
+//public class TestDataLoader {
+//
+//    private final UserRepository userRepository;
+//    private final DataCouponRepository dataCouponRepository;
+//    private final UserDataCouponRepository userDataCouponRepository;
+//    private final StatusRepository statusRepository;
+//    private final TelecomCompanyRepository telecomCompanyRepository;
+//    private final DataTransactionHistoryRepository dataTransactionHistoryRepository;
+//    private final TransactionFeedRepository transactionFeedRepository;
+//    private final SalesTypeRepository salesTypeRepository;
+//    private final EntityManager entityManager;
+//
+////    @PostConstruct
+////    public void loadData() {
+////        if (userDataCouponRepository.count() > 0) return;
+////
+//////        TelecomCompany skt = telecomCompanyRepository.save(TelecomCompany.builder().name("SKT").build());
+////        TelecomCompany skt = telecomCompanyRepository.findById(1L).orElse(null);
+////
+//////        Status issuedStatus = Status.builder().statusId(4L).domain("COUPON").code("ISSUED").description("발급됨").build();
+//////        statusRepository.save(issuedStatus);
+////        Status issuedStatus = statusRepository.findById(4L).orElse(null);
+////        statusRepository.saveAll(List.of(
+////                Status.builder().statusId(1L).domain("FEED").code("ON_SALE").description("판매중"
+////                ).build(),
+////                Status.builder().statusId(2L).domain("FEED").code("COMPLETED").description(
+////                        "거래완료").build(),
+////                Status.builder().statusId(3L).domain("FEED").code("EXPIRED").description(
+////                        "기간만료").build(),
+////
+////                 // UserDataCoupon Status
+////                issuedStatus,
+////                Status.builder().statusId(5L).domain("COUPON").code("USED").description("사용됨").build(),
+////                Status.builder().statusId(6L).domain("COUPON").code("EXPIRED").description("기간 만료").build()
+////        ));
+//
+//
+////        User testUser = User.builder()
+////                .email("testUser@eureca.com")
+////                .password("password")
+////                .nickname("PerfTestUser")
+////                .phoneNumber("010-1234-5678")
+////                .telecomCompany(skt)
+////                .build();
+////        userRepository.save(testUser);
+////        User testUser = userRepository.findById(1L).orElseThrow(RuntimeException::new);
+////
+////        DataCoupon sampleCoupon = dataCouponRepository.save(DataCoupon.builder()
+////                .couponNumber(UUID.randomUUID().toString())
+////                .dataAmount(1000L)
+////                .telecomCompany(skt)
+////                .build());
+////
+////        int totalCoupons = 1_000_000;
+////        int expiredCount = 100_000;
+////        int batchSize = 1000;
+////
+////        List<UserDataCoupon> couponList = new ArrayList<>();
+////        LocalDateTime today = LocalDateTime.now();
+////
+////        for (int i = 1; i <= totalCoupons; i++) {
+////            LocalDateTime expiredAt = (i <= expiredCount)
+////                    ? today.minusDays(1)
+////                    : today.plusDays(2);
+////
+////            UserDataCoupon userDataCoupon = UserDataCoupon.builder()
+////                    .user(testUser)
+////                    .dataCoupon(sampleCoupon)
+////                    .expiresAt(expiredAt)
+////                    .status(issuedStatus)
+////                    .build();
+////
+////            couponList.add(userDataCoupon);
+////
+////            if (i % batchSize == 0) {
+////                userDataCouponRepository.saveAll(couponList);
+////                couponList.clear();
+////                if (i % 100000 == 0) System.out.println("Saved " + i + "user data coupons...");
+////            }
+////        }
+////
+////        if (!couponList.isEmpty()) userDataCouponRepository.saveAll(couponList);
+////
+////        System.out.println("==================================================");
+////        System.out.println("Test data loading finished. Total " + userDataCouponRepository.count() + " coupons are loaded.");
+////        System.out.println("-> Expired Coupons: " + expiredCount);
+////        System.out.println("-> Valid Coupons: " + (totalCoupons - expiredCount));
+////        System.out.println("==================================================");
+////
+////    }
+////}
 //    @PostConstruct
 //    public void init() {
 //        statusRepository.saveAll(List.of(
@@ -128,31 +130,30 @@ public class TestDataLoader {
 //    }
 //    @Transactional
 //    public void loadData() {
-//        if (transactionFeedRepository.count() > 0 || dataTransactionHistoryRepository.count() > 0) return;
+////        if (transactionFeedRepository.count() > 0 || dataTransactionHistoryRepository.count() > 0) return;
 //
-//        LocalDateTime now = LocalDateTime.now();
+//        LocalDateTime now = LocalDateTime.of(2025, 8, 3, 12, 30, 0);
 //        LocalDateTime oneHourAgo = now.minusHours(1);
 //        LocalDateTime threeHoursAgo = now.minusHours(3);
 //
 //        TelecomCompany skt = telecomCompanyRepository.save(TelecomCompany.builder().name("SKT").build());
 //        TelecomCompany kt = telecomCompanyRepository.save(TelecomCompany.builder().name("KT").build());
 //        TelecomCompany lgu = telecomCompanyRepository.save(TelecomCompany.builder().name("LG U+").build());
+//
+////        TelecomCompany skt = telecomCompanyRepository.findById(1L).orElse(null);
+////        TelecomCompany kt = telecomCompanyRepository.findById(2L).orElse(null);
+////        TelecomCompany lgu = telecomCompanyRepository.findById(3L).orElse(null);
+//
+//
+//
 //        TelecomCompany[] carriers = new TelecomCompany[]{skt, kt, lgu};
 //
 //        Status onSale = statusRepository.save(Status.builder().statusId(1L).domain("FEED").code("ON_SALE").description("판매중"
 //        ).build());
 //        SalesType normal = salesTypeRepository.save(SalesType.builder().salesTypeId(1L).name("일반 판매").build());
 //
-////        statusRepository.saveAll(List.of(
-////
-////                Status.builder().statusId(2L).domain("FEED").code("COMPLETED").description(
-////                        "거래완료").build(),
-////                Status.builder().statusId(3L).domain("FEED").code("EXPIRED").description(
-////                        "기간만료").build(),
-////
-////                Status.builder().statusId(5L).domain("COUPON").code("USED").description("사용됨").build(),
-////                Status.builder().statusId(6L).domain("COUPON").code("EXPIRED").description("기간 만료").build()
-////        ));
+////        Status onSale = statusRepository.findById(1L).orElse(null);
+////        SalesType normal = salesTypeRepository.findById(1L).orElse(null);
 //
 //
 //        User buyer = User.builder()
@@ -173,10 +174,13 @@ public class TestDataLoader {
 //                .build();
 //        userRepository.save(seller);
 //
+////        User buyer = userRepository.findById(1L).orElse(null);
+////        User seller = userRepository.findById(2L).orElse(null);
+//
 //
 //        // 1. TransactionFeed 1,000,000개 생성 (telecomCompany 순환, salesDataAmount 순환)
 ////        int totalFeeds = 1_000_000;
-//        int totalFeeds = 100_000;
+//        int totalFeeds = 500_000;
 //        int feedBatchSize = 1_000;
 //        List<TransactionFeed> feedBatch = new ArrayList<>(feedBatchSize);
 //        List<TransactionFeed> savedFeeds = new ArrayList<>(totalFeeds);
@@ -232,12 +236,12 @@ public class TestDataLoader {
 //        }
 //
 //        // 4. remainingFeeds: hotFeeds 제외한 나머지 700,000개
-////        Set<Long> hotFeedIds = hotFeeds.stream()
-////                .map(TransactionFeed::getTransactionFeedId)
-////                .collect(Collectors.toSet());
-////        List<TransactionFeed> remainingFeeds = savedFeeds.stream()
-////                .filter(f -> !hotFeedIds.contains(f.getTransactionFeedId()))
-////                .toList(); // 예상 700,000개
+//        Set<Long> hotFeedIds = hotFeeds.stream()
+//                .map(TransactionFeed::getTransactionFeedId)
+//                .collect(Collectors.toSet());
+//        List<TransactionFeed> remainingFeeds = savedFeeds.stream()
+//                .filter(f -> !hotFeedIds.contains(f.getTransactionFeedId()))
+//                .toList(); // 예상 700,000개
 //
 //        // 5. DataTransactionHistory 생성 (각 Feed 당 하나씩)
 //        int historyBatchSize = 1_000;
@@ -259,21 +263,21 @@ public class TestDataLoader {
 //            }
 //        }
 //
-////        // b) remainingFeeds -> createdAt = now -3h
-////        for (TransactionFeed feed : remainingFeeds) {
-////            DataTransactionHistory history = DataTransactionHistory.builder()
-////                    .transactionFeed(feed)
-////                    .user(buyer)
-////                    .transactionFinalPrice(100L)
-////                    .isDeleted(false)
-////                    .createdAt(threeHoursAgo)
-////                    .build();
-////            historyBatch.add(history);
-////            if (historyBatch.size() == historyBatchSize) {
-////                saveHistoryBatch(historyBatch);
-////                historyBatch.clear();
-////            }
-////        }
+//        // b) remainingFeeds -> createdAt = now -3h
+//        for (TransactionFeed feed : remainingFeeds) {
+//            DataTransactionHistory history = DataTransactionHistory.builder()
+//                    .transactionFeed(feed)
+//                    .user(buyer)
+//                    .transactionFinalPrice(100L)
+//                    .isDeleted(false)
+//                    .createdAt(threeHoursAgo)
+//                    .build();
+//            historyBatch.add(history);
+//            if (historyBatch.size() == historyBatchSize) {
+//                saveHistoryBatch(historyBatch);
+//                historyBatch.clear();
+//            }
+//        }
 //
 //        if (!historyBatch.isEmpty()) {
 //            saveHistoryBatch(historyBatch);

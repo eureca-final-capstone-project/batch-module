@@ -1,7 +1,9 @@
 package eureca.capstone.project.batch.job;
 
 //import eureca.capstone.project.batch.component.listener.ExecutionListener;
+import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
+import eureca.capstone.project.batch.component.listener.CustomWriterListener;
 import eureca.capstone.project.batch.component.retry.RetryPolicy;
 import eureca.capstone.project.batch.component.tasklet.BidStatisticSaveTasklet;
 import eureca.capstone.project.batch.component.tasklet.NormalStatisticSaveTasklet;
@@ -60,6 +62,7 @@ public class TransactionStatisticJobConfig {
     private final DataSource dataSource;
     private final PagingQueryProvider pagingQueryProvider;
     private final CustomSkipListener customSkipListener;
+    private final CustomWriterListener customWriterListener;
 
     // 일반판매 거래량 + 시세 통계 JOB
     @Bean
@@ -82,11 +85,12 @@ public class TransactionStatisticJobConfig {
                 .build();
     }
 
+    //--------------------------- jdbc reader 사용하는 step ---------------------------//
     // 시세통계 + 일반판매 거래량 집계 STEP [normalStatisticJob]
     @Bean
     public Step normalStatisticCalculateStep(
-            JdbcPagingItemReader<TransactionHistoryStatisticDto> transactionHistoryJdbcReader
-    ) {
+            JdbcPagingItemReader<TransactionHistoryStatisticDto> transactionHistoryJdbcReader,
+            CustomRetryListener customRetryListener) {
         return new StepBuilder("normalStatisticCalculateStep", jobRepository)
                 .<TransactionHistoryStatisticDto, TransactionHistoryStatisticDto>chunk(100, platformTransactionManager)
                 .reader(transactionHistoryJdbcReader)
@@ -97,10 +101,35 @@ public class TransactionStatisticJobConfig {
                 .retryPolicy(retryPolicy.createRetryPolicy())
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
                 .listener(customSkipListener)
+                .listener(customRetryListener)
+//                .listener(customWriterListener)
 //                .listener(executionListener)
                 .listener(promotionListener())
                 .build();
     }
+
+
+    //--------------------------- jpa reader 사용하는 step ---------------------------//
+//@Bean
+//public Step normalStatisticCalculateStep(
+//        JpaPagingItemReader<TransactionHistoryStatisticDto> transactionHistoryJpaReader,
+//        CustomRetryListener customRetryListener) {
+//    return new StepBuilder("normalStatisticCalculateStep", jobRepository)
+//            .<TransactionHistoryStatisticDto, TransactionHistoryStatisticDto>chunk(100, platformTransactionManager)
+//            .reader(transactionHistoryJpaReader)
+//            .writer(normalStatisticWriter)
+//            .faultTolerant()
+//            .skip(DataIntegrityViolationException.class)
+//            .skipLimit(3)
+//            .retryPolicy(retryPolicy.createRetryPolicy())
+//            .backOffPolicy(retryPolicy.createBackoffPolicy())
+//            .listener(customSkipListener)
+//            .listener(customRetryListener)
+////                .listener(customWriterListener)
+////                .listener(executionListener)
+//            .listener(promotionListener())
+//            .build();
+//}
 
     // 시세통계 + 일반판매 거래량 저장 STEP [normalStatisticJob]
     @Bean
@@ -235,14 +264,13 @@ public class TransactionStatisticJobConfig {
                         "tc.name AS telecomCompanyName, " +
                         "th.transaction_final_price AS transactionFinalPrice, " +
                         "tf.sales_data_amount AS salesDataAmount, " +
-                        "th.created_at, " +
                         "th.transaction_history_id"
         );
 
         factory.setFromClause(
                 "FROM data_transaction_history th " +
                         "JOIN transaction_feed tf ON th.transaction_feed_id = tf.transaction_feed_id " +
-                        "JOIN telecom_company tc ON tf.telecome_company_id = tc.telecom_company_id " + // 실제 DB 컬럼명에 맞춤
+                        "JOIN telecom_company tc ON tf.telecome_company_id = tc.telecom_company_id " + 
                         "JOIN sales_type st ON tf.sales_type_id = st.sales_type_id"
         );
 
@@ -250,9 +278,8 @@ public class TransactionStatisticJobConfig {
                 "WHERE st.sales_type_id = :typeId AND th.created_at >= :start AND th.created_at < :end"
         );
 
-        // H2에서 컬럼명 충돌 방지를 위해 고유한 alias 사용
+
         Map<String, Order> sortKeys = new LinkedHashMap<>();
-        sortKeys.put("th.created_at", Order.DESCENDING);
         sortKeys.put("th.transaction_history_id", Order.DESCENDING); // tiebreaker
         factory.setSortKeys(sortKeys);
 

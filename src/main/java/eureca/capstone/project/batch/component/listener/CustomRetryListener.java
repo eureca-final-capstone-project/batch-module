@@ -32,5 +32,7 @@ public class CustomRetryListener implements RetryListener {
     @Override
     public <T, E extends Throwable> void onError(RetryContext context, RetryCallback<T, E> callback, Throwable throwable) {
         // 각 재시도마다 로그를 남기고 싶다면 여기에 로직 추가
+        log.info("retry count={}", context.getRetryCount());
+        log.error("실제로 발생한 예외 클래스: {}", throwable.getClass().getName());
     }
 }
