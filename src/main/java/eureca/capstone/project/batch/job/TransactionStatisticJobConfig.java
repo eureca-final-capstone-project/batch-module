@@ -1,5 +1,6 @@
 package eureca.capstone.project.batch.job;
 
+import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
 import eureca.capstone.project.batch.component.listener.ExecutionContextCleanupListener;
 import eureca.capstone.project.batch.component.listener.ExecutionListener;
@@ -8,6 +9,7 @@ import eureca.capstone.project.batch.component.tasklet.BidStatisticSaveTasklet;
 import eureca.capstone.project.batch.component.tasklet.NormalStatisticSaveTasklet;
 import eureca.capstone.project.batch.component.writer.NormalStatisticWriter;
 import eureca.capstone.project.batch.component.writer.BidVolumeStatisticWriter;
+import eureca.capstone.project.batch.market_statistic.dto.TransactionHistoryStatisticDto;
 import eureca.capstone.project.batch.transaction_feed.entity.DataTransactionHistory;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
@@ -19,17 +21,25 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.listener.ExecutionContextPromotionListener;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.JpaPagingItemReader;
+import org.springframework.batch.item.database.Order;
+import org.springframework.batch.item.database.PagingQueryProvider;
+import org.springframework.batch.item.database.builder.JdbcPagingItemReaderBuilder;
 import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilder;
+import org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import javax.sql.DataSource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
@@ -47,13 +57,17 @@ public class TransactionStatisticJobConfig {
     private final BidVolumeStatisticWriter bidVolumeStatisticWriter;
     private final NormalStatisticSaveTasklet normalStatisticSaveTasklet;
     private final BidStatisticSaveTasklet bidStatisticSaveTasklet;
+    private final DataSource dataSource;
 
     // 일반판매 거래량 + 시세 통계 JOB
     @Bean
-    public Job normalStatisticJob() {
+    public Job normalStatisticJob(
+            Step normalStatisticCalculateStep,
+            Step normalStatisticSaveStep
+    ) {
         return new JobBuilder("normalStatisticJob", jobRepository)
-                .start(normalStatisticCalculateStep()) // 시세 통계, 거래량 조회 및 누적 집계
-                .next(normalStatisticSaveStep())       // 통계 계산 및 저장
+                .start(normalStatisticCalculateStep) // 시세 통계, 거래량 조회 및 누적 집계
+                .next(normalStatisticSaveStep)       // 통계 계산 및 저장
                 .build();
     }
 
@@ -68,10 +82,13 @@ public class TransactionStatisticJobConfig {
 
     // 시세통계 + 일반판매 거래량 집계 STEP [normalStatisticJob]
     @Bean
-    public Step normalStatisticCalculateStep() {
+    public Step normalStatisticCalculateStep(
+            JdbcPagingItemReader<TransactionHistoryStatisticDto> transactionHistoryJdbcReader,
+            CustomRetryListener customRetryListener
+    ) {
         return new StepBuilder("normalStatisticCalculateStep", jobRepository)
-                .<DataTransactionHistory, DataTransactionHistory>chunk(100, platformTransactionManager)
-                .reader(transactionHistoryJpaReader(null))
+                .<TransactionHistoryStatisticDto, TransactionHistoryStatisticDto>chunk(100, platformTransactionManager)
+                .reader(transactionHistoryJdbcReader)
                 .writer(normalStatisticWriter)
                 .faultTolerant()
                 .skip(DataIntegrityViolationException.class)
@@ -80,6 +97,7 @@ public class TransactionStatisticJobConfig {
                 .backOffPolicy(retryPolicy.createBackoffPolicy())
                 .listener(executionListener)
                 .listener(customSkipListener)
+                .listener(customRetryListener)
                 .listener(promotionListener())
                 .build();
     }
@@ -124,8 +142,10 @@ public class TransactionStatisticJobConfig {
     // 시세통계 + 일반판매 거래량 READER [normalStatisticJob]
     @Bean
     @StepScope
-    public JpaPagingItemReader<DataTransactionHistory> transactionHistoryJpaReader(
+    public JdbcPagingItemReader<TransactionHistoryStatisticDto> transactionHistoryJdbcReader(
+            PagingQueryProvider normalStatisticQueryProvider, // Qualifier 없이 주입
             @Value("#{jobParameters['currentTime']}") String currentDate) {
+
         LocalDateTime currentTime = LocalDateTime.parse(currentDate);
         LocalDateTime from = currentTime
                 .minusHours(1)
@@ -137,25 +157,63 @@ public class TransactionStatisticJobConfig {
                 .withSecond(0)
                 .withNano(0);
 
-        Map<String,Object> params = Map.of(
+        Map<String, Object> params = Map.of(
                 "start", from,
-                "end",   to,
+                "end", to,
                 "typeId", 1
         );
 
-        String query = "select th from DataTransactionHistory th " +
-                "join fetch th.transactionFeed tf " +
-                "join fetch tf.telecomCompany tc " +
-                "join fetch tf.salesType st " +
-                "where th.createdAt >= :start and th.createdAt < :end and st.salesTypeId = :typeId";
+        RowMapper<TransactionHistoryStatisticDto> rowMapper = (rs, rowNum) ->
+                TransactionHistoryStatisticDto.builder()
+                        .telecomCompanyId(rs.getLong("telecomCompanyId"))
+                        .telecomCompanyName(rs.getString("telecomCompanyName"))
+                        .transactionFinalPrice(rs.getLong("transactionFinalPrice"))
+                        .salesDataAmount(rs.getLong("salesDataAmount"))
+                        .build();
 
-        return new JpaPagingItemReaderBuilder<DataTransactionHistory>()
-                .name("transactionHistoryJpaReader")
-                .entityManagerFactory(entityManagerFactory)
-                .queryString(query)
+        return new JdbcPagingItemReaderBuilder<TransactionHistoryStatisticDto>()
+                .name("transactionHistoryJdbcReader")
+                .dataSource(dataSource)
+                .queryProvider(normalStatisticQueryProvider)
+                .rowMapper(rowMapper)
                 .parameterValues(params)
                 .pageSize(100)
                 .build();
+    }
+
+    @Bean
+    @StepScope
+    public PagingQueryProvider normalStatisticQueryProvider(
+            @Value("#{jobParameters['currentTime']}") String currentDate) throws Exception {
+
+        SqlPagingQueryProviderFactoryBean factory = new SqlPagingQueryProviderFactoryBean();
+        factory.setDataSource(dataSource);
+
+        factory.setSelectClause(
+                "SELECT tc.telecom_company_id AS telecomCompanyId, " +
+                        "tc.name AS telecomCompanyName, " +
+                        "th.transaction_final_price AS transactionFinalPrice, " +
+                        "tf.sales_data_amount AS salesDataAmount, " +
+                        "th.transaction_history_id"
+        );
+
+        factory.setFromClause(
+                "FROM data_transaction_history th " +
+                        "JOIN transaction_feed tf ON th.transaction_feed_id = tf.transaction_feed_id " +
+                        "JOIN telecom_company tc ON tf.telecome_company_id = tc.telecom_company_id " +
+                        "JOIN sales_type st ON tf.sales_type_id = st.sales_type_id"
+        );
+
+        factory.setWhereClause(
+                "WHERE st.sales_type_id = :typeId AND th.created_at >= :start AND th.created_at < :end"
+        );
+
+
+        Map<String, Order> sortKeys = new LinkedHashMap<>();
+        sortKeys.put("th.transaction_history_id", Order.DESCENDING);
+
+
+        return factory.getObject();
     }
 
     // 입찰판매 거래량 READER [bidStatisticJob]
