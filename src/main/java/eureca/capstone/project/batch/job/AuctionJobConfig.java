@@ -190,7 +190,7 @@ public class AuctionJobConfig {
                             feedDocs.add(doc);
                         }, ()->{
                             // document가 없을 경우 방어용
-                           feedDocs.add(TransactionFeedDocument.fromEntity(managedFeed));
+                            feedDocs.add(TransactionFeedDocument.fromEntity(managedFeed));
                         });
             }
             // bulk 저장
