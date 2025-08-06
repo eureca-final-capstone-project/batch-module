@@ -173,7 +173,7 @@ public class TransactionStatisticJobConfig {
 
         Map<String, Order> sortKeys = new LinkedHashMap<>();
         sortKeys.put("th.transaction_history_id", Order.DESCENDING);
-
+        factory.setSortKeys(sortKeys);
 
         return factory.getObject();
     }
