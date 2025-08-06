@@ -16,7 +16,7 @@ import java.util.Objects;
 @AllArgsConstructor
 public class Status extends BaseEntity {
 
-    @Id // ID 직접 할당하도록 변경
+    @Id
     @Column(name = "status_id")
     private Long statusId;
 
@@ -28,6 +28,11 @@ public class Status extends BaseEntity {
 
     @Column(nullable = false)
     private String description;
+
+    // 👇 RowMapper에서 사용할 수 있도록 ID만 받는 생성자를 추가합니다.
+    public Status(Long statusId) {
+        this.statusId = statusId;
+    }
 
     @Override
     public boolean equals(Object o) {
