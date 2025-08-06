@@ -2,7 +2,6 @@ package eureca.capstone.project.batch.job;
 
 import eureca.capstone.project.batch.alarm.service.NotificationService;
 import eureca.capstone.project.batch.auction.service.AuctionBatchService;
-import eureca.capstone.project.batch.component.listener.AuctionNotificationListener;
 import eureca.capstone.project.batch.component.listener.CustomRetryListener;
 import eureca.capstone.project.batch.component.listener.CustomSkipListener;
 import eureca.capstone.project.batch.component.listener.JobCompletionNotificationListener;
@@ -34,6 +33,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,8 +52,8 @@ public class AuctionJobConfig {
     private final CustomSkipListener customSkipListener;
     private final CustomRetryListener customRetryListener;
     private final TransactionFeedSearchRepository transactionFeedSearchRepository;
+    private final NotificationService notificationService;
     private final EntityManager entityManager;
-    private final AuctionNotificationListener auctionNotificationListener;
 
     private static final int CHUNK_SIZE = 100;
 
@@ -78,7 +78,6 @@ public class AuctionJobConfig {
                 .skipLimit(10)
                 .listener(customSkipListener)
                 .listener(customRetryListener)
-                .listener(auctionNotificationListener)
                 .build();
     }
 
@@ -142,22 +141,66 @@ public class AuctionJobConfig {
     @Bean
     public ItemWriter<AuctionResult> auctionFeedWriter() {
         return chunk -> {
+            List<TransactionFeedDocument> feedDocs = new ArrayList<>();
+
             for (AuctionResult result : chunk.getItems()) {
                 TransactionFeed managedFeed = entityManager.merge(result.getTransactionFeed());
                 if (result.getType() == AuctionResult.Type.WINNING) {
                     auctionBatchService.processWinningBid(managedFeed, result.getBuyer(), result.getFinalBidAmount());
+                    // 낙찰자에게 알림 전송
+                    if (result.getBuyer() != null) {
+                        notificationService.sendNotification(
+                                result.getBuyer().getUserId(),
+                                "구매",
+                                String.format("[%s] 게시글이 (다챠페이)%d원에 낙찰되었습니다!", managedFeed.getTitle(), result.getFinalBidAmount())
+                        );
+                    }
+                    // 판매자에게 알림 전송
+                    if (managedFeed.getUser() != null) {
+                        notificationService.sendNotification(
+                                managedFeed.getUser().getUserId(),
+                                "판매",
+                                String.format("[%s] 게시글이 (다챠페이)%d원에 낙찰되었습니다!", managedFeed.getTitle(), result.getFinalBidAmount())
+                        );
+                    }
                 } else if (result.getType() == AuctionResult.Type.FAILED) {
                     auctionBatchService.processFailedBid(managedFeed);
+                    // 유찰된 판매글 등록자에게 알림 전송
+                    if (managedFeed.getUser() != null) {
+                        notificationService.sendNotification(
+                                managedFeed.getUser().getUserId(),
+                                "게시글 만료",
+                                String.format("[%s] 게시글이 유찰되었습니다.", managedFeed.getTitle())
+                        );
+                    }
                 }
 
-                transactionFeedSearchRepository.save(TransactionFeedDocument.fromEntity(managedFeed));
+                // ES에 동기화
+                transactionFeedSearchRepository.findById(managedFeed.getTransactionFeedId())
+                        .ifPresentOrElse(doc -> {
+                            if(result.getType() == AuctionResult.Type.WINNING) {
+                                doc.updateStatus(managedFeed.getStatus().getCode());
+                                doc.updateHighestPrice(result.getFinalBidAmount());
+                                log.info("[auctionFeedWriter] 낙찰. ES에 동기화. status:{}, 낙찰가:{}", managedFeed.getStatus().getCode(), result.getFinalBidAmount());
+                            }
+                            else if(result.getType() == AuctionResult.Type.FAILED) {
+                                doc.updateStatus(managedFeed.getStatus().getCode());
+                                log.info("[auctionFeedWriter] 유찰. ES에 동기화. status:{}", managedFeed.getStatus().getCode());
+                            }
+                            feedDocs.add(doc);
+                        }, ()->{
+                            // document가 없을 경우 방어용
+                            feedDocs.add(TransactionFeedDocument.fromEntity(managedFeed));
+                        });
             }
+            // bulk 저장
+            transactionFeedSearchRepository.saveAll(feedDocs);
         };
     }
 
 
     public static class AuctionResult {
-        public enum Type { WINNING, FAILED }
+        enum Type { WINNING, FAILED }
 
         private final TransactionFeed transactionFeed;
         private final User buyer;

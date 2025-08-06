@@ -85,7 +85,19 @@ public class NormalStatisticSaveTasklet implements Tasklet {
                             .transactionCount(0L)
                             .build());
 
-            Long avgPrice = dto.getTotalDataAmount() == 0 ? null : Math.round((double) dto.getTotalPrice() / dto.getTotalDataAmount() * PRICE_PER_MB);
+            Long avgPrice;
+            if (dto.getTotalDataAmount() > 0) {
+                avgPrice = Math.round((double) dto.getTotalPrice() / dto.getTotalDataAmount() * PRICE_PER_MB);
+            } else {
+                log.info("[SaveTasklet] {} 통신사 거래내역 없음. 직전 데이터 조회 시도.", telecom.getName());
+                avgPrice = marketStatisticRepository
+                        .findFirstByTelecomCompanyTelecomCompanyIdAndStaticsTimeBeforeAndAveragePriceIsNotNullOrderByStaticsTimeDesc(
+                                telecom.getTelecomCompanyId(),
+                                statisticsTime
+                        )
+                        .map(MarketStatistic::getAveragePrice) // 조회된 통계에서 averagePrice를 가져옴
+                        .orElse(null); // 만약 시스템 전체에서 한 번도 거래가 없었다면 null
+            }
 
             marketStats.add(MarketStatistic.builder()
                     .telecomCompany(telecom)
@@ -121,8 +133,6 @@ public class NormalStatisticSaveTasklet implements Tasklet {
             throw e;
         }
 
-        // Job 재실행 시 데이터가 중복 누적되는 것을 방지하기 위해 ExecutionContext에서 통계 데이터를 제거합니다.
-        executionContext.remove(NormalStatisticWriter.NORMAL_STATISTIC_KEY);
 
         return RepeatStatus.FINISHED;
     }
