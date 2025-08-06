@@ -38,7 +38,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import javax.sql.DataSource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -68,15 +67,6 @@ public class TransactionStatisticJobConfig {
         return new JobBuilder("normalStatisticJob", jobRepository)
                 .start(normalStatisticCalculateStep) // 시세 통계, 거래량 조회 및 누적 집계
                 .next(normalStatisticSaveStep)       // 통계 계산 및 저장
-                .build();
-    }
-
-    // 입찰판매 거래량 통계 JOB
-    @Bean
-    public Job bidStatisticJob() {
-        return new JobBuilder("bidStatisticJob", jobRepository)
-                .start(bidStatisticCalculateStep()) // 거래량 조회 및 누적 집계
-                .next(bidStatisticSaveStep())       // 통계 계산 및 저장
                 .build();
     }
 
@@ -111,39 +101,11 @@ public class TransactionStatisticJobConfig {
                 .build();
     }
 
-    // 입찰판매 거래량 집계 STEP [bidStatisticJob]
-    @Bean
-    public Step bidStatisticCalculateStep() {
-        return new StepBuilder("bidStatisticCalculateStep", jobRepository)
-                .<DataTransactionHistory, DataTransactionHistory>chunk(100, platformTransactionManager)
-                .reader(volumeJpaReader(null))
-                .writer(bidVolumeStatisticWriter)
-                .faultTolerant()
-                .skip(DataIntegrityViolationException.class)
-                .skipLimit(3)
-                .retryPolicy(retryPolicy.createRetryPolicy())
-                .backOffPolicy(retryPolicy.createBackoffPolicy())
-                .listener(executionListener)
-                .listener(customSkipListener)
-                .listener(promotionListener())
-                .build();
-    }
-
-    // 입찰판매 거래량 저장 STEP [bidStatisticJob]
-    @Bean
-    public Step bidStatisticSaveStep() {
-        return new StepBuilder("bidStatisticSaveStep", jobRepository)
-                .tasklet(bidStatisticSaveTasklet, platformTransactionManager)
-                .listener(new ExecutionContextCleanupListener(BidVolumeStatisticWriter.VOLUME_STATISTIC_KEY))
-                .build();
-    }
-
-
     // 시세통계 + 일반판매 거래량 READER [normalStatisticJob]
     @Bean
     @StepScope
     public JdbcPagingItemReader<TransactionHistoryStatisticDto> transactionHistoryJdbcReader(
-            PagingQueryProvider normalStatisticQueryProvider, // Qualifier 없이 주입
+            PagingQueryProvider normalStatisticQueryProvider,
             @Value("#{jobParameters['currentTime']}") String currentDate) {
 
         LocalDateTime currentTime = LocalDateTime.parse(currentDate);
@@ -215,6 +177,45 @@ public class TransactionStatisticJobConfig {
 
         return factory.getObject();
     }
+
+
+    // 입찰판매 거래량 통계 JOB
+    @Bean
+    public Job bidStatisticJob() {
+        return new JobBuilder("bidStatisticJob", jobRepository)
+                .start(bidStatisticCalculateStep()) // 거래량 조회 및 누적 집계
+                .next(bidStatisticSaveStep())       // 통계 계산 및 저장
+                .build();
+    }
+
+
+    // 입찰판매 거래량 집계 STEP [bidStatisticJob]
+    @Bean
+    public Step bidStatisticCalculateStep() {
+        return new StepBuilder("bidStatisticCalculateStep", jobRepository)
+                .<DataTransactionHistory, DataTransactionHistory>chunk(100, platformTransactionManager)
+                .reader(volumeJpaReader(null))
+                .writer(bidVolumeStatisticWriter)
+                .faultTolerant()
+                .skip(DataIntegrityViolationException.class)
+                .skipLimit(3)
+                .retryPolicy(retryPolicy.createRetryPolicy())
+                .backOffPolicy(retryPolicy.createBackoffPolicy())
+                .listener(executionListener)
+                .listener(customSkipListener)
+                .listener(promotionListener())
+                .build();
+    }
+
+    // 입찰판매 거래량 저장 STEP [bidStatisticJob]
+    @Bean
+    public Step bidStatisticSaveStep() {
+        return new StepBuilder("bidStatisticSaveStep", jobRepository)
+                .tasklet(bidStatisticSaveTasklet, platformTransactionManager)
+                .listener(new ExecutionContextCleanupListener(BidVolumeStatisticWriter.VOLUME_STATISTIC_KEY))
+                .build();
+    }
+
 
     // 입찰판매 거래량 READER [bidStatisticJob]
     @Bean
